@@ -1,1 +1,330 @@
-inspection-record-word.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Rental Unit Inspection Form</title>
+<style>
+    body { font-family: Arial, sans-serif; margin: 20px; max-width: 1200px; line-height: 1.45; }
+    h1, h2 { color: #1a1a1a; }
+    .config-section, .section { margin-bottom: 32px; border: 1px solid #d0d0d0; padding: 18px; border-radius: 6px; background: #fcfcfc; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 9px; text-align: left; vertical-align: top; }
+    th { background: #e9ecef; font-weight: bold; }
+    select, input[type="text"], input[type="number"], textarea {
+        width: 100%; padding: 7px; box-sizing: border-box; font-size: 14px; border: 1px solid #aaa; border-radius: 3px;
+    }
+    textarea { height: 120px; resize: vertical; min-height: 80px; }
+    .header-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; margin-bottom: 28px; }
+    button { padding: 10px 20px; margin: 6px 8px 0 0; background: #0d6efd; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    button:hover { background: #0b5ed7; }
+    #output { white-space: pre-wrap; background: #f8f9fa; padding: 18px; border: 1px solid #dee2e6; margin-top: 28px; font-family: Consolas, monospace; font-size: 14px; line-height: 1.5; }
+    #roomSelectSection { display: none; margin-top: 20px; }
+    #currentRoomTable { display: none; }
+</style>
+<script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+</head>
+<body>
+
+<h1>Rental Unit Inspection Form</h1>
+
+<div class="header-grid">
+    <div><label>Tenant Name</label><br><input type="text" id="tenant" value=""></div>
+    <div><label>Landlord Name</label><br><input type="text" id="landlord" value=""></div>
+    <div><label>Address</label><br><input type="text" id="address" value=""></div>
+    <div><label>Project No</label><br><input type="text" id="projectNo" value=""></div>
+    <div><label>Inspector</label><br><input type="text" id="inspector" value=""></div>
+    <div><label>Inspection Date</label><br><input type="text" id="date" value=""></div>
+    <div><label>Nature of Inspection</label><br><input type="text" id="nature" value=""></div>
+    <div><label>Requested by</label><br><input type="text" id="requestedBy" value=""></div>
+    <div><label>Total Estimated Cost ($)</label><br><input type="number" id="totalCost" value="" step="10"></div>
+</div>
+
+<div class="config-section">
+    <h2>Configure Unit Layout</h2>
+    <div class="header-grid">
+        <div><label>Number of Kitchens (1-3)</label><br>
+            <select id="numKitchens"><option value="1">1</option><option value="2">2</option><option value="3">3</option></select>
+        </div>
+        <div><label>Number of Bathrooms (1-3)</label><br>
+            <select id="numBathrooms"><option value="1">1</option><option value="2">2</option><option value="3">3</option></select>
+        </div>
+        <div><label>Number of Corridors (1-3)</label><br>
+            <select id="numCorridors"><option value="1">1</option><option value="2">2</option><option value="3">3</option></select>
+        </div>
+        <div><label>Number of Bedrooms (incl. Master, 1-5)</label><br>
+            <select id="numBedrooms"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option></select>
+        </div>
+    </div>
+    <button onclick="configureRooms()">Apply Configuration</button>
+</div>
+
+<div id="roomSelectSection">
+    <h2>Select Room to Inspect</h2>
+    <select id="roomSelect" onchange="showRoomTable()">
+        <option value="">-- Choose a Room --</option>
+    </select>
+</div>
+
+<div id="currentRoomTable" class="section"></div>
+
+<div style="margin: 24px 0;">
+    <button onclick="generateOutput()">Download as Word (.docx)</button>
+    <button onclick="saveData()">Save to Browser</button>
+    <button onclick="loadData()">Load Saved Data</button>
+</div>
+
+<div id="output"></div>
+
+<script>
+// 定义全局变量（必须在 generateOutput 前定义，否则无反应）
+let data = {};
+let roomList = [];
+const roomItems = {
+    "KITCHEN": ["Windows and doors", "Walls / Trims", "Ceiling", "Flooring", "Stove (Ownership)", "Rangehood", "Refrigerator (Ownership)", "Dishwasher (Ownership)", "Sink / Faucets", "Cupboards", "Counter Top", "Electrical / Lighting", "Other"],
+    "DINING ROOM": ["Windows and doors", "Walls / Trims", "Ceiling", "Flooring", "Electrical / Lighting", "Other"],
+    "LIVING ROOM": ["Windows and Doors", "Closets", "Walls / Trims", "Ceiling", "Flooring", "Electrical / Lighting", "Other"],
+    "CORRIDOR": ["Windows and Doors", "Closets", "Walls / Trims", "Ceiling", "Flooring", "Electrical / Lighting", "Other"],
+    "MASTER BEDROOM": ["Windows and Doors", "Closets", "Walls / Trims", "Ceiling", "Flooring", "Electrical / Lighting", "Other"],
+    "BEDROOM": ["Windows and Doors", "Closets", "Walls / Trims", "Ceiling", "Flooring", "Electrical / Lighting", "Other"],
+    "BATHROOM": ["Windows and doors", "Walls / Trims", "Ceiling", "Flooring", "Sink / Cabinet / Faucets", "Medicine Cabinet / Mirror", "Bathtub / Shower / Faucets", "Toilet", "Electrical / Lighting", "Exhaust fan", "Bathroom hardware", "Other"],
+    "LAUNDRY ROOM": ["Windows and doors", "Closets", "Walls / Trims", "Ceiling", "Flooring", "Sink / Cabinet / Faucets", "Electrical Fixtures", "Other"],
+    "STAIRWELLS": ["Guardrails / Handrails", "Walls / Trims", "Ceiling", "Stairs / Landing", "Electrical Fixtures", "Other"],
+    "BASEMENT": ["Windows and doors", "Closets", "Walls / Trims", "Ceiling", "Flooring", "Electrical / Lighting", "Other"],
+    "MECHANICAL": ["Water Supply", "Water distribution", "Wastewater system", "Drainage & vents", "Plumbing", "Heating System", "Thermostats", "Hot Water Tank", "HRV & Grill", "Dryer Hose & Grill", "Potable Water Treatment", "Other"],
+    "ELECTRICAL": ["Smoke Detector / CO detectors", "Electrical panel", "Electrical Wiring", "Exterior Lighting", "Others"],
+    "GENERAL": ["Windows and doors", "Clean-up", "Content Disposal", "Clean-up of Appliances", "Prime & Paint all units", "Garbage / Utility Room", "Other"],
+    "EXTERIOR": ["Siding", "Roofing", "Steps & Landings", "Access Ramp", "Clothline", "Landscaping", "Driveway / Walkways", "Detached structure", "Parking Area", "Fences", "Others"]
+};
+
+const codes = ["", "A", "Re", "Rp", "ReCB", "RpCB", "HI", "Ni"];
+
+function configureRooms() {
+    const numKitchens = parseInt(document.getElementById("numKitchens").value);
+    const numBathrooms = parseInt(document.getElementById("numBathrooms").value);
+    const numCorridors = parseInt(document.getElementById("numCorridors").value);
+    const numBedrooms = parseInt(document.getElementById("numBedrooms").value);
+
+    roomList = [];
+
+    for (let i = 1; i <= numKitchens; i++) roomList.push(`KITCHEN ${i}`);
+    for (let i = 1; i <= numBathrooms; i++) roomList.push(`BATHROOM ${i}`);
+    roomList.push("DINING ROOM", "LIVING ROOM");
+
+    if (numBedrooms >= 1) roomList.push("MASTER BEDROOM");
+    for (let i = 2; i <= numBedrooms; i++) roomList.push(`BEDROOM ${i}`);
+
+    for (let i = 1; i <= numCorridors; i++) roomList.push(`CORRIDOR ${i}`);
+
+    roomList = roomList.concat(["LAUNDRY ROOM", "STAIRWELLS", "BASEMENT", "MECHANICAL", "ELECTRICAL", "GENERAL", "EXTERIOR", "Inspection Notes"]);
+
+    const select = document.getElementById("roomSelect");
+    select.innerHTML = '<option value="">-- Choose a Room --</option>';
+    roomList.forEach(room => {
+        select.innerHTML += `<option value="${room}">${room}</option>`;
+    });
+
+    document.getElementById("roomSelectSection").style.display = "block";
+    alert("Rooms configured. Select a room to inspect.");
+}
+
+function showRoomTable() {
+    const selected = document.getElementById("roomSelect").value;
+    const container = document.getElementById("currentRoomTable");
+    container.innerHTML = "";
+    container.style.display = "none";
+
+    if (!selected) return;
+
+    if (selected === "Inspection Notes") {
+        container.style.display = "block";
+        container.innerHTML = `
+            <h2>Inspection Notes</h2>
+            <textarea id="inspectionNotes" placeholder="General notes..."></textarea>
+            <button onclick="saveNotes()" style="margin-top:10px;">Save Notes</button>
+        `;
+        if (data["__NOTES__"]) document.getElementById("inspectionNotes").value = data["__NOTES__"].notes || "";
+        return;
+    }
+
+    const baseType = selected.startsWith("KITCHEN") ? "KITCHEN" :
+                     selected.startsWith("BATHROOM") ? "BATHROOM" :
+                     selected.startsWith("CORRIDOR") ? "CORRIDOR" :
+                     selected.startsWith("BEDROOM") ? "BEDROOM" : selected;
+
+    const items = roomItems[baseType] || [];
+
+    container.style.display = "block";
+    container.innerHTML = `<h2>${selected}</h2>`;
+
+    const table = document.createElement("table");
+    table.innerHTML = `
+        <thead>
+            <tr>
+                <th>Item</th>
+                <th>Code</th>
+                <th>Condition / Description</th>
+                <th>Est. Cost ($)</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    `;
+
+    const tbody = table.querySelector("tbody");
+
+    items.forEach(item => {
+        const key = `${selected}||${item}`;
+        const row = document.createElement("tr");
+        row.innerHTML = `
+            <td>${item}</td>
+            <td><select id="code-${key}">${codes.map(c => `<option value="${c}">${c}</option>`).join("")}</select></td>
+            <td><textarea id="desc-${key}" placeholder="e.g. insect screen replace\nRemove blinds"></textarea></td>
+            <td><input type="number" id="cost-${key}" step="10" min="0"></td>
+            <td><button onclick="updateEntry('${key}')">Save Row</button></td>
+        `;
+        tbody.appendChild(row);
+
+        if (data[key]) {
+            document.getElementById(`code-${key}`).value = data[key].code || "";
+            document.getElementById(`desc-${key}`).value = data[key].desc || "";
+            document.getElementById(`cost-${key}`).value = data[key].cost || "";
+        }
+    });
+
+    container.appendChild(table);
+}
+
+function updateEntry(key) {
+    const code = document.getElementById(`code-${key}`).value.trim();
+    const desc = document.getElementById(`desc-${key}`).value.trim();
+    const cost = document.getElementById(`cost-${key}`).value.trim();
+
+    if (code || desc || cost) {
+        data[key] = { code, desc, cost };
+        alert("Row saved.");
+    }
+}
+
+function saveNotes() {
+    const notes = document.getElementById("inspectionNotes").value.trim();
+    if (notes) {
+        data["__NOTES__"] = { notes };
+        alert("Notes saved.");
+    }
+}
+
+function saveData() {
+    localStorage.setItem("inspectionData", JSON.stringify(data));
+    alert("Data saved to browser.");
+}
+
+function loadData() {
+    const saved = localStorage.getItem("inspectionData");
+    if (saved) {
+        data = JSON.parse(saved);
+        alert("Data loaded.");
+    }
+}
+
+// 生成 .docx 函数（已修复）
+function generateOutput() {
+    const { Packer, Document, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, BorderStyle } = docx;
+
+    const doc = new Document({
+        sections: [{
+            properties: {},
+            children: [
+                new Paragraph({
+                    children: [new TextRun({ text: "RENTAL UNIT INSPECTION", bold: true, size: 32 })],
+                    alignment: AlignmentType.CENTER
+                }),
+
+                new Paragraph(`Tenant Name: ${document.getElementById("tenant").value || "—"}`),
+                new Paragraph(`Landlord Name: ${document.getElementById("landlord").value || "—"}`),
+                new Paragraph(`Address: ${document.getElementById("address").value || "—"}`),
+                new Paragraph(`Project No: ${document.getElementById("projectNo").value || "—"}`),
+                new Paragraph(`Inspector: ${document.getElementById("inspector").value || "—"}`),
+                new Paragraph(`Date: ${document.getElementById("date").value || "—"}`),
+                new Paragraph(`Nature: ${document.getElementById("nature").value || "—"}`),
+                new Paragraph(`Requested by: ${document.getElementById("requestedBy").value || "—"}`),
+
+                new Paragraph("REPAIR CODES", { bold: true }),
+                new Paragraph("A Acceptable; Re Repair; Rp Replace; ReCB Repair Charge Back; RpCB Replace Charge Back; HI Housekeeping issue"),
+                new Paragraph("Blank Not applicable, Ni Not inspected"),
+
+                // 房间表格
+                ...roomList.filter(r => r !== "Inspection Notes").map(room => {
+                    const baseType = room.startsWith("KITCHEN") ? "KITCHEN" :
+                                     room.startsWith("BATHROOM") ? "BATHROOM" :
+                                     room.startsWith("CORRIDOR") ? "CORRIDOR" :
+                                     room.startsWith("BEDROOM") ? "BEDROOM" : room;
+
+                    const items = roomItems[baseType] || [];
+                    const tableRows = [
+                        new TableRow({
+                            children: [
+                                new TableCell({ children: [new Paragraph("CODE")] }),
+                                new TableCell({ children: [new Paragraph("CONDITION / DESCRIPTION")] }),
+                                new TableCell({ children: [new Paragraph("Estimated Cost")] })
+                            ]
+                        })
+                    ];
+
+                    let hasData = false;
+                    items.forEach(item => {
+                        const key = `${room}||${item}`;
+                        const entry = data[key];
+                        if (entry && (entry.desc || entry.code)) {
+                            hasData = true;
+                            tableRows.push(new TableRow({
+                                children: [
+                                    new TableCell({ children: [new Paragraph(entry.code || "—")] }),
+                                    new TableCell({ children: [new Paragraph(entry.desc || "—")] }),
+                                    new TableCell({ children: [new Paragraph(entry.cost ? `$${entry.cost}` : "—")] })
+                                ]
+                            }));
+                        }
+                    });
+
+                    if (hasData) {
+                        return [
+                            new Paragraph(room.toUpperCase(), { bold: true }),
+                            new Table({
+                                rows: tableRows,
+                                width: { size: 100, type: WidthType.PERCENTAGE },
+                                borders: {
+                                    top: { style: BorderStyle.SINGLE, size: 1 },
+                                    bottom: { style: BorderStyle.SINGLE, size: 1 },
+                                    left: { style: BorderStyle.SINGLE, size: 1 },
+                                    right: { style: BorderStyle.SINGLE, size: 1 }
+                                }
+                            })
+                        ];
+                    }
+                    return [];
+                }).flat(),
+
+                new Paragraph("Inspection Notes:", { bold: true }),
+                new Paragraph(document.getElementById("inspectionNotes")?.value || "None"),
+
+                new Paragraph(`Total Estimated Cost: $${document.getElementById("totalCost").value || "—"}`, { bold: true }),
+
+                new Paragraph("Inspector’s Signature: ____________________    Date: ____________________"),
+                new Paragraph("Tenant’s Signature: ____________________    Date: ____________________"),
+                new Paragraph("Landlord’s Signature: ____________________    Date: ____________________")
+            ]
+        }]
+    });
+
+    Packer.toBlob(doc).then(blob => {
+        saveAs(blob, "Inspection_Report.docx");
+        alert("Downloaded as Inspection_Report.docx");
+    }).catch(err => {
+        alert("Error creating DOCX: " + err.message);
+    });
+}
+</script>
+
+</body>
+</html>
