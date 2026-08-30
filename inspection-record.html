@@ -425,12 +425,12 @@ function xmlEscape(value) {
 
 function centerOnLine(value, width) {
   const text = String(value || "").trim();
-  const size = Math.max(width, text.length || width);
-  if (!text) return " ".repeat(size);
-  if (text.length >= size) return " " + text + " ";
+  const pad = "\u00A0";
+  const size = Math.max(width, text.length + 8);
+  if (!text) return pad.repeat(size);
   const left = Math.floor((size - text.length) / 2);
   const right = size - text.length - left;
-  return " ".repeat(left) + text + " ".repeat(right);
+  return pad.repeat(Math.max(left, 2)) + text + pad.repeat(Math.max(right, 6));
 }
 
 function field(id) {
