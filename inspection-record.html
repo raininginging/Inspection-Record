@@ -426,11 +426,11 @@ function xmlEscape(value) {
 function centerOnLine(value, width) {
   const text = String(value || "").trim();
   const size = Math.max(width, text.length || width);
-  if (!text) return "_".repeat(size);
-  if (text.length >= size) return text;
+  if (!text) return " ".repeat(size);
+  if (text.length >= size) return " " + text + " ";
   const left = Math.floor((size - text.length) / 2);
   const right = size - text.length - left;
-  return "_".repeat(left) + text + "_".repeat(right);
+  return " ".repeat(left) + text + " ".repeat(right);
 }
 
 function field(id) {
