@@ -423,6 +423,16 @@ function xmlEscape(value) {
     .replace(/"/g, "&quot;");
 }
 
+function centerOnLine(value, width) {
+  const text = String(value || "").trim();
+  const size = Math.max(width, text.length || width);
+  if (!text) return "_".repeat(size);
+  if (text.length >= size) return text;
+  const left = Math.floor((size - text.length) / 2);
+  const right = size - text.length - left;
+  return "_".repeat(left) + text + "_".repeat(right);
+}
+
 function field(id) {
   const el = document.getElementById(id);
   return el ? el.value.trim() : "";
@@ -606,15 +616,15 @@ async function buildWordBlob() {
   const zip = await JSZip.loadAsync(await res.arrayBuffer());
   let xml = await zip.file("word/document.xml").async("string");
   const values = {
-    "{{H_TENANT}}": field("tenant"),
-    "{{H_LANDLORD}}": field("landlord"),
-    "{{H_ADDRESS}}": field("address"),
-    "{{H_PROJECT}}": field("projectNo"),
-    "{{H_INSPECTOR}}": field("inspector"),
-    "{{H_DATE}}": field("date"),
-    "{{H_NATURE}}": field("nature"),
-    "{{H_REQUESTED}}": field("requestedBy"),
-    "{{H_BEDROOMS}}": field("numBedrooms") || "1",
+    "{{H_TENANT}}": centerOnLine(field("tenant"), 46),
+    "{{H_LANDLORD}}": centerOnLine(field("landlord"), 43),
+    "{{H_ADDRESS}}": centerOnLine(field("address"), 38),
+    "{{H_PROJECT}}": centerOnLine(field("projectNo"), 39),
+    "{{H_INSPECTOR}}": centerOnLine(field("inspector"), 31),
+    "{{H_DATE}}": centerOnLine(field("date"), 35),
+    "{{H_NATURE}}": centerOnLine(field("nature"), 28),
+    "{{H_REQUESTED}}": centerOnLine(field("requestedBy"), 35),
+    "{{H_BEDROOMS}}": centerOnLine(field("numBedrooms") || "1", 16),
     "{{H_TOTAL}}": field("totalCost") ? "$" + field("totalCost") : "",
     "{{H_NOTES}}": ((data["__NOTES__"] && data["__NOTES__"].notes) || "") + (extraRoomNotes() ? "\n" + extraRoomNotes() : "")
   };
