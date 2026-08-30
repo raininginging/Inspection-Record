@@ -2,115 +2,194 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Rental Unit Inspection Form - Customizable</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#0d6efd">
+<title>Rental Unit Inspection Form</title>
 <style>
-    body { font-family: Arial, sans-serif; margin: 20px; max-width: 1200px; line-height: 1.45; }
-    h1, h2 { color: #1a1a1a; }
-    .config-section, .section { margin-bottom: 32px; border: 1px solid #d0d0d0; padding: 18px; border-radius: 6px; background: #fcfcfc; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { border: 1px solid #ccc; padding: 9px; text-align: left; vertical-align: top; }
-    th { background: #e9ecef; font-weight: bold; }
-    select, input[type="text"], input[type="number"], textarea {
-        width: 100%; padding: 7px; box-sizing: border-box; font-size: 14px; border: 1px solid #aaa; border-radius: 3px;
-    }
-    textarea { height: 120px; resize: vertical; min-height: 80px; }
-    .header-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; margin-bottom: 28px; }
-    button { padding: 10px 20px; margin: 6px 8px 0 0; background: #0d6efd; color: white; border: none; border-radius: 4px; cursor: pointer; }
-    button:hover { background: #0b5ed7; }
-    #output { white-space: pre-wrap; background: #f8f9fa; padding: 18px; border: 1px solid #dee2e6; margin-top: 28px; font-family: Consolas, monospace; font-size: 14px; line-height: 1.5; }
-    #roomSelectSection { display: none; margin-top: 20px; }
-    #currentRoomTable { display: none; }
+  :root {
+    --pad: 16px;
+    --radius: 10px;
+    --line: #d0d0d0;
+    --bg: #f4f5f7;
+    --card: #ffffff;
+    --text: #1a1a1a;
+    --muted: #5c6370;
+    --blue: #0d6efd;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 17px;
+    line-height: 1.45;
+    padding: calc(12px + env(safe-area-inset-top)) var(--pad) calc(28px + env(safe-area-inset-bottom));
+  }
+  h1 { font-size: 1.45rem; margin: 8px 0 18px; }
+  h2 { font-size: 1.15rem; margin: 0 0 12px; }
+  label {
+    display: block;
+    font-size: 0.92rem;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: #222;
+  }
+  input[type="text"],
+  input[type="number"],
+  select,
+  textarea {
+    width: 100%;
+    font-size: 16px; /* iOS won't zoom if >= 16px */
+    padding: 12px 12px;
+    border: 1px solid #b9b9b9;
+    border-radius: 8px;
+    background: #fff;
+    min-height: 46px;
+  }
+  textarea { min-height: 120px; resize: vertical; }
+  .stack { display: flex; flex-direction: column; gap: 14px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  button {
+    width: 100%;
+    min-height: 48px;
+    padding: 12px 16px;
+    margin: 0;
+    background: var(--blue);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+  }
+  button.secondary { background: #3d4f66; }
+  button.danger { background: #b42318; }
+  .btn-row { display: flex; flex-direction: column; gap: 10px; margin: 8px 0 16px; }
+  #roomSelectSection { display: none; }
+  #currentRoomTable { display: none; }
+  .item-card {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 12px;
+    background: #fafafa;
+  }
+  .item-card h3 {
+    font-size: 1rem;
+    margin: 0 0 10px;
+  }
+  .hint { color: var(--muted); font-size: 0.9rem; margin: 0 0 10px; }
+  #output {
+    white-space: pre-wrap;
+    background: #fff;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    overflow-x: auto;
+  }
 </style>
 </head>
 <body>
 
 <h1>Rental Unit Inspection Form</h1>
 
-<div class="header-grid">
-    <div><label>Tenant Name</label><br><input type="text" id="tenant" value=""></div>
-    <div><label>Landlord Name</label><br><input type="text" id="landlord" value=""></div>
-    <div><label>Address</label><br><input type="text" id="address" value=""></div>
-    <div><label>Project No</label><br><input type="text" id="projectNo" value=""></div>
-    <div><label>Inspector</label><br><input type="text" id="inspector" value=""></div>
-    <div><label>Inspection Date</label><br><input type="text" id="date" value=""></div>
-    <div><label>Nature of Inspection</label><br><input type="text" id="nature" value=""></div>
-    <div><label>Requested by</label><br><input type="text" id="requestedBy" value=""></div>
-    <div><label>Total Estimated Cost ($)</label><br><input type="number" id="totalCost" value="" step="10"></div>
+<div class="card stack">
+  <div><label for="tenant">Tenant Name</label><input type="text" id="tenant"></div>
+  <div><label for="landlord">Landlord Name</label><input type="text" id="landlord"></div>
+  <div><label for="address">Address</label><input type="text" id="address"></div>
+  <div><label for="projectNo">Project No</label><input type="text" id="projectNo"></div>
+  <div><label for="inspector">Inspector</label><input type="text" id="inspector"></div>
+  <div><label for="date">Inspection Date</label><input type="text" id="date" placeholder="YYYY-MM-DD"></div>
+  <div><label for="nature">Nature of Inspection</label><input type="text" id="nature"></div>
+  <div><label for="requestedBy">Requested by</label><input type="text" id="requestedBy"></div>
+  <div><label for="totalCost">Total Estimated Cost ($)</label><input type="number" id="totalCost" step="10"></div>
 </div>
 
-<!-- 配置可变房间数量 -->
-<div class="config-section">
-    <h2>Configure Unit Layout</h2>
-    <div class="header-grid">
-        <div><label>Number of Kitchens (1-3)</label><br>
-            <select id="numKitchens">
-                <option value="1">1</option>
-                <option value="2">2</option>
-                <option value="3">3</option>
-            </select>
-        </div>
-        <div><label>Number of Bathrooms (1-3)</label><br>
-            <select id="numBathrooms">
-                <option value="1">1</option>
-                <option value="2">2</option>
-                <option value="3">3</option>
-            </select>
-        </div>
-        <div><label>Number of Corridors (1-3)</label><br>
-            <select id="numCorridors">
-                <option value="1">1</option>
-                <option value="2">2</option>
-                <option value="3">3</option>
-            </select>
-        </div>
-        <div><label>Number of Bedrooms (incl. Master, 1-5)</label><br>
-            <select id="numBedrooms">
-                <option value="1">1</option>
-                <option value="2">2</option>
-                <option value="3">3</option>
-                <option value="4">4</option>
-                <option value="5">5</option>
-            </select>
-        </div>
+<div class="card">
+  <h2>Configure Unit Layout</h2>
+  <div class="stack">
+    <div>
+      <label for="numKitchens">Number of Kitchens (1-3)</label>
+      <select id="numKitchens">
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+      </select>
     </div>
-    <button onclick="configureRooms()">Apply Configuration</button>
+    <div>
+      <label for="numBathrooms">Number of Bathrooms (1-3)</label>
+      <select id="numBathrooms">
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+      </select>
+    </div>
+    <div>
+      <label for="numCorridors">Number of Corridors (1-3)</label>
+      <select id="numCorridors">
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+      </select>
+    </div>
+    <div>
+      <label for="numBedrooms">Number of Bedrooms (incl. Master, 1-5)</label>
+      <select id="numBedrooms">
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
+      </select>
+    </div>
+    <button type="button" onclick="configureRooms()">Apply Configuration</button>
+  </div>
 </div>
 
-<!-- 选择房间 -->
-<div id="roomSelectSection">
-    <h2>Select Room to Inspect</h2>
-    <select id="roomSelect" onchange="showRoomTable()">
-        <option value="">-- Choose a Room --</option>
-    </select>
+<div id="roomSelectSection" class="card">
+  <h2>Select Room to Inspect</h2>
+  <p class="hint">Choose one room, fill it, then choose the next. Scroll to move down.</p>
+  <select id="roomSelect" onchange="showRoomTable()">
+    <option value="">-- Choose a Room --</option>
+  </select>
 </div>
 
-<!-- 当前房间内容区域 -->
-<div id="currentRoomTable" class="section"></div>
+<div id="currentRoomTable" class="card"></div>
 
-<div style="margin: 24px 0;">
-    <button onclick="generateOutput()">Generate Formatted Report</button>
-    <button onclick="saveData()">Save to Browser</button>
-    <button onclick="loadData()">Load Saved Data</button>
+<div class="btn-row">
+  <button type="button" onclick="generateOutput()">Generate Formatted Report</button>
+  <button type="button" class="secondary" onclick="saveData()">Save to Browser</button>
+  <button type="button" class="secondary" onclick="loadData()">Load Saved Data</button>
 </div>
 
 <div id="output"></div>
 
 <script>
-// 房间项目列表（英文）
 const roomItems = {
-    "KITCHEN": ["Windows and doors", "Walls / Trims", "Ceiling", "Flooring", "Stove (Ownership)", "Rangehood", "Refrigerator (Ownership)", "Dishwasher (Ownership)", "Sink / Faucets", "Cupboards", "Counter Top", "Electrical / Lighting", "Other"],
-    "DINING ROOM": ["Windows and doors", "Walls / Trims", "Ceiling", "Flooring", "Electrical / Lighting", "Other"],
-    "LIVING ROOM": ["Windows and Doors", "Closets", "Walls / Trims", "Ceiling", "Flooring", "Electrical / Lighting", "Other"],
-    "LAUNDRY ROOM": ["Windows and doors", "Closets", "Walls / Trims", "Ceiling", "Flooring", "Sink / Cabinet / Faucets", "Electrical Fixtures", "Other"],
-    "STAIRWELLS": ["Guardrails / Handrails", "Walls / Trims", "Ceiling", "Stairs / Landing", "Electrical Fixtures", "Other"],
-    "BASEMENT": ["Windows and doors", "Closets", "Walls / Trims", "Ceiling", "Flooring", "Electrical / Lighting", "Other"],
-    "MECHANICAL": ["Water Supply", "Water distribution", "Wastewater system", "Drainage & vents", "Plumbing", "Heating System", "Thermostats", "Hot Water Tank", "HRV & Grill", "Dryer Hose & Grill", "Potable Water Treatment", "Other"],
-    "ELECTRICAL": ["Smoke Detector / CO detectors", "Electrical panel", "Electrical Wiring", "Exterior Lighting", "Others"],
-    "GENERAL": ["Windows and doors", "Clean-up", "Content Disposal", "Clean-up of Appliances", "Prime & Paint all units", "Garbage / Utility Room", "Other"],
-    "EXTERIOR": ["Siding", "Roofing", "Steps & Landings", "Access Ramp", "Clothline", "Landscaping", "Driveway / Walkways", "Detached structure", "Parking Area", "Fences", "Others"],
-    "CORRIDOR": ["Windows and Doors", "Closets", "Walls / Trims", "Ceiling", "Flooring", "Electrical / Lighting", "Other"],
-    "BATHROOM": ["Windows and doors", "Walls / Trims", "Ceiling", "Flooring", "Sink / Cabinet / Faucets", "Medicine Cabinet / Mirror", "Bathtub / Shower / Faucets", "Toilet", "Electrical / Lighting", "Exhaust fan", "Bathroom hardware", "Other"],
-    "BEDROOM": ["Windows and Doors", "Closets", "Walls / Trims", "Ceiling", "Flooring", "Electrical / Lighting", "Other"]
+  "KITCHEN": ["Windows and doors", "Walls / Trims", "Ceiling", "Flooring", "Stove (Ownership)", "Rangehood", "Refrigerator (Ownership)", "Dishwasher (Ownership)", "Sink / Faucets", "Cupboards", "Counter Top", "Electrical / Lighting", "Other"],
+  "DINING ROOM": ["Windows and doors", "Walls / Trims", "Ceiling", "Flooring", "Electrical / Lighting", "Other"],
+  "LIVING ROOM": ["Windows and Doors", "Closets", "Walls / Trims", "Ceiling", "Flooring", "Electrical / Lighting", "Other"],
+  "LAUNDRY ROOM": ["Windows and doors", "Closets", "Walls / Trims", "Ceiling", "Flooring", "Sink / Cabinet / Faucets", "Electrical Fixtures", "Other"],
+  "STAIRWELLS": ["Guardrails / Handrails", "Walls / Trims", "Ceiling", "Stairs / Landing", "Electrical Fixtures", "Other"],
+  "BASEMENT": ["Windows and doors", "Closets", "Walls / Trims", "Ceiling", "Flooring", "Electrical / Lighting", "Other"],
+  "MECHANICAL": ["Water Supply", "Water distribution", "Wastewater system", "Drainage & vents", "Plumbing", "Heating System", "Thermostats", "Hot Water Tank", "HRV & Grill", "Dryer Hose & Grill", "Potable Water Treatment", "Other"],
+  "ELECTRICAL": ["Smoke Detector / CO detectors", "Electrical panel", "Electrical Wiring", "Exterior Lighting", "Others"],
+  "GENERAL": ["Windows and doors", "Clean-up", "Content Disposal", "Clean-up of Appliances", "Prime & Paint all units", "Garbage / Utility Room", "Other"],
+  "EXTERIOR": ["Siding", "Roofing", "Steps & Landings", "Access Ramp", "Clothline", "Landscaping", "Driveway / Walkways", "Detached structure", "Parking Area", "Fences", "Others"],
+  "CORRIDOR": ["Windows and Doors", "Closets", "Walls / Trims", "Ceiling", "Flooring", "Electrical / Lighting", "Other"],
+  "BATHROOM": ["Windows and doors", "Walls / Trims", "Ceiling", "Flooring", "Sink / Cabinet / Faucets", "Medicine Cabinet / Mirror", "Bathtub / Shower / Faucets", "Toilet", "Electrical / Lighting", "Exhaust fan", "Bathroom hardware", "Other"],
+  "BEDROOM": ["Windows and Doors", "Closets", "Walls / Trims", "Ceiling", "Flooring", "Electrical / Lighting", "Other"]
 };
 
 const codes = ["", "A", "Re", "Rp", "ReCB", "RpCB", "HI", "Ni"];
@@ -119,225 +198,197 @@ let data = {};
 let roomList = [];
 
 function configureRooms() {
-    const numKitchens   = parseInt(document.getElementById("numKitchens").value);
-    const numBathrooms  = parseInt(document.getElementById("numBathrooms").value);
-    const numCorridors  = parseInt(document.getElementById("numCorridors").value);
-    const numBedrooms   = parseInt(document.getElementById("numBedrooms").value);
+  const numKitchens = parseInt(document.getElementById("numKitchens").value, 10);
+  const numBathrooms = parseInt(document.getElementById("numBathrooms").value, 10);
+  const numCorridors = parseInt(document.getElementById("numCorridors").value, 10);
+  const numBedrooms = parseInt(document.getElementById("numBedrooms").value, 10);
 
-    roomList = [];
+  roomList = [];
+  for (let i = 1; i <= numKitchens; i++) roomList.push(`KITCHEN ${i}`);
+  for (let i = 1; i <= numBathrooms; i++) roomList.push(`BATHROOM ${i}`);
+  roomList.push("DINING ROOM", "LIVING ROOM");
+  if (numBedrooms >= 1) roomList.push("MASTER BEDROOM");
+  for (let i = 2; i <= numBedrooms; i++) roomList.push(`BEDROOM ${i}`);
+  for (let i = 1; i <= numCorridors; i++) roomList.push(`CORRIDOR ${i}`);
+  roomList = roomList.concat([
+    "LAUNDRY ROOM", "STAIRWELLS", "BASEMENT", "MECHANICAL",
+    "ELECTRICAL", "GENERAL", "EXTERIOR", "Inspection Notes"
+  ]);
 
-    // Kitchens 1 ~ N
-    for (let i = 1; i <= numKitchens; i++) {
-        roomList.push(`KITCHEN ${i}`);
-    }
+  const select = document.getElementById("roomSelect");
+  select.innerHTML = '<option value="">-- Choose a Room --</option>';
+  roomList.forEach(room => {
+    select.innerHTML += `<option value="${room}">${room}</option>`;
+  });
 
-    // Bathrooms 1 ~ N
-    for (let i = 1; i <= numBathrooms; i++) {
-        roomList.push(`BATHROOM ${i}`);
-    }
-
-    roomList.push("DINING ROOM", "LIVING ROOM");
-
-    // Master Bedroom
-    if (numBedrooms >= 1) {
-        roomList.push("MASTER BEDROOM");
-    }
-
-    // Additional Bedrooms
-    for (let i = 2; i <= numBedrooms; i++) {
-        roomList.push(`BEDROOM ${i}`);
-    }
-
-    // Corridors 1 ~ N
-    for (let i = 1; i <= numCorridors; i++) {
-        roomList.push(`CORRIDOR ${i}`);
-    }
-
-    // Fixed rooms + Notes
-    roomList = roomList.concat([
-        "LAUNDRY ROOM", "STAIRWELLS", "BASEMENT", "MECHANICAL",
-        "ELECTRICAL", "GENERAL", "EXTERIOR", "Inspection Notes"
-    ]);
-
-    // 填充下拉菜单
-    const select = document.getElementById("roomSelect");
-    select.innerHTML = '<option value="">-- Choose a Room --</option>';
-    roomList.forEach(room => {
-        select.innerHTML += `<option value="${room}">${room}</option>`;
-    });
-
-    document.getElementById("roomSelectSection").style.display = "block";
-    alert(`Configured:\nKitchens: ${numKitchens}\nBathrooms: ${numBathrooms}\nCorridors: ${numCorridors}\nBedrooms: ${numBedrooms}\n\nSelect a room from dropdown.`);
+  document.getElementById("roomSelectSection").style.display = "block";
+  document.getElementById("currentRoomTable").style.display = "none";
+  document.getElementById("currentRoomTable").innerHTML = "";
+  window.scrollTo({ top: document.getElementById("roomSelectSection").offsetTop - 12, behavior: "smooth" });
 }
 
 function showRoomTable() {
-    const selected = document.getElementById("roomSelect").value;
-    const container = document.getElementById("currentRoomTable");
-    container.innerHTML = "";
-    container.style.display = "none";
+  const selected = document.getElementById("roomSelect").value;
+  const container = document.getElementById("currentRoomTable");
+  container.innerHTML = "";
+  container.style.display = "none";
+  if (!selected) return;
 
-    if (!selected) return;
-
-    if (selected === "Inspection Notes") {
-        container.style.display = "block";
-        container.innerHTML = `
-            <h2>Inspection Notes</h2>
-            <textarea id="inspectionNotes" placeholder="General notes (multi-line OK)..."></textarea>
-            <button onclick="saveNotes()" style="margin-top:12px;">Save Notes</button>
-        `;
-        if (data["__NOTES__"]) {
-            document.getElementById("inspectionNotes").value = data["__NOTES__"].notes || "";
-        }
-        return;
-    }
-
-    // 普通房间
-    const baseType = selected.startsWith("KITCHEN") ? "KITCHEN" :
-                     selected.startsWith("BATHROOM") ? "BATHROOM" :
-                     selected.startsWith("CORRIDOR") ? "CORRIDOR" :
-                     selected.startsWith("BEDROOM") ? "BEDROOM" : selected;
-
-    const items = roomItems[baseType] || [];
-
+  if (selected === "Inspection Notes") {
     container.style.display = "block";
-    container.innerHTML = `<h2>${selected}</h2>`;
-
-    const table = document.createElement("table");
-    table.innerHTML = `
-        <thead>
-            <tr>
-                <th>Item</th>
-                <th>Code</th>
-                <th>Condition / Description</th>
-                <th>Est. Cost ($)</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody></tbody>
+    container.innerHTML = `
+      <h2>Inspection Notes</h2>
+      <textarea id="inspectionNotes" placeholder="General notes (multi-line OK)..."></textarea>
+      <div class="btn-row" style="margin-top:12px;">
+        <button type="button" onclick="saveNotes()">Save Notes</button>
+      </div>
     `;
+    if (data["__NOTES__"]) {
+      document.getElementById("inspectionNotes").value = data["__NOTES__"].notes || "";
+    }
+    return;
+  }
 
-    const tbody = table.querySelector("tbody");
+  const baseType = selected.startsWith("KITCHEN") ? "KITCHEN" :
+                   selected.startsWith("BATHROOM") ? "BATHROOM" :
+                   selected.startsWith("CORRIDOR") ? "CORRIDOR" :
+                   selected.startsWith("BEDROOM") || selected === "MASTER BEDROOM" ? "BEDROOM" : selected;
+  const items = roomItems[baseType] || [];
 
-    items.forEach(item => {
-        const key = `${selected}||${item}`;
-        const row = document.createElement("tr");
-        row.innerHTML = `
-            <td>${item}</td>
-            <td><select id="code-${key}">${codes.map(c => `<option value="${c}">${c}</option>`).join("")}</select></td>
-            <td><textarea id="desc-${key}" placeholder="Multiple lines OK, e.g.\nitem1\nitem2\nitem3"></textarea></td>
-            <td><input type="number" id="cost-${key}" step="10" min="0"></td>
-            <td><button onclick="updateEntry('${key}')">Save Row</button></td>
-        `;
-        tbody.appendChild(row);
-
-        if (data[key]) {
-            document.getElementById(`code-${key}`).value = data[key].code || "";
-            document.getElementById(`desc-${key}`).value = data[key].desc || "";
-            document.getElementById(`cost-${key}`).value = data[key].cost || "";
-        }
-    });
-
-    container.appendChild(table);
+  container.style.display = "block";
+  let html = `<h2>${selected}</h2><p class="hint">One item per block. Scroll down for the next item.</p>`;
+  items.forEach((item, index) => {
+    const key = `${selected}||${item}`;
+    const saved = data[key] || {};
+    html += `
+      <div class="item-card">
+        <h3>${item}</h3>
+        <label>Code</label>
+        <select id="code-${index}">${codes.map(c => `<option value="${c}" ${saved.code === c ? "selected" : ""}>${c || "—"}</option>`).join("")}</select>
+        <label style="margin-top:10px;">Condition / Description</label>
+        <textarea id="desc-${index}" placeholder="Multiple lines OK">${escapeHtml(saved.desc || "")}</textarea>
+        <label style="margin-top:10px;">Est. Cost ($)</label>
+        <input type="number" id="cost-${index}" step="10" min="0" value="${escapeHtml(saved.cost || "")}">
+        <div class="btn-row" style="margin-top:12px;margin-bottom:0;">
+          <button type="button" onclick="updateEntry(${JSON.stringify(key)}, ${index})">Save Item</button>
+        </div>
+      </div>
+    `;
+  });
+  container.innerHTML = html;
 }
 
-function updateEntry(key) {
-    const code = document.getElementById(`code-${key}`).value.trim();
-    const desc = document.getElementById(`desc-${key}`).value.trim();
-    const cost = document.getElementById(`cost-${key}`).value.trim();
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/"/g, "&quot;");
+}
 
-    if (code || desc || cost) {
-        data[key] = { code, desc, cost };
-        alert("Row saved.");
-    }
+function updateEntry(key, index) {
+  const codeEl = document.getElementById(`code-${index}`);
+  const descEl = document.getElementById(`desc-${index}`);
+  const costEl = document.getElementById(`cost-${index}`);
+  if (!codeEl || !descEl || !costEl) return;
+  const code = codeEl.value.trim();
+  const desc = descEl.value.trim();
+  const cost = costEl.value.trim();
+  if (code || desc || cost) {
+    data[key] = { code, desc, cost };
+    codeEl.closest(".item-card").style.borderColor = "#2f9e44";
+  }
 }
 
 function saveNotes() {
-    const notes = document.getElementById("inspectionNotes").value.trim();
-    if (notes) {
-        data["__NOTES__"] = { notes };
-        alert("Notes saved.");
-    }
+  const notes = document.getElementById("inspectionNotes").value.trim();
+  data["__NOTES__"] = { notes };
 }
 
 function generateOutput() {
-    let text = "RENTAL UNIT INSPECTION RECORD\n".padEnd(60, "-") + "\n\n";
+  let text = "RENTAL UNIT INSPECTION RECORD\n".padEnd(60, "-") + "\n\n";
+  text += `Tenant .......... ${document.getElementById("tenant").value.trim() || "—"}\n`;
+  text += `Landlord ........ ${document.getElementById("landlord").value.trim() || "—"}\n`;
+  text += `Address ......... ${document.getElementById("address").value.trim() || "—"}\n`;
+  text += `Project No ...... ${document.getElementById("projectNo").value.trim() || "—"}\n`;
+  text += `Inspector ....... ${document.getElementById("inspector").value.trim() || "—"}\n`;
+  text += `Date ............ ${document.getElementById("date").value.trim() || "—"}\n`;
+  text += `Nature .......... ${document.getElementById("nature").value.trim() || "—"}\n`;
+  text += `Requested by .... ${document.getElementById("requestedBy").value.trim() || "—"}\n\n`;
 
-    text += `Tenant .......... ${document.getElementById("tenant").value.trim() || "—"}\n`;
-    text += `Landlord ........ ${document.getElementById("landlord").value.trim() || "—"}\n`;
-    text += `Address ......... ${document.getElementById("address").value.trim() || "—"}\n`;
-    text += `Project No ...... ${document.getElementById("projectNo").value.trim() || "—"}\n`;
-    text += `Inspector ....... ${document.getElementById("inspector").value.trim() || "—"}\n`;
-    text += `Date ............ ${document.getElementById("date").value.trim() || "—"}\n`;
-    text += `Nature .......... ${document.getElementById("nature").value.trim() || "—"}\n`;
-    text += `Requested by .... ${document.getElementById("requestedBy").value.trim() || "—"}\n\n`;
-
-    roomList.forEach(room => {
-        if (room === "Inspection Notes") return;
-
-        const baseType = room.startsWith("KITCHEN") ? "KITCHEN" :
-                         room.startsWith("BATHROOM") ? "BATHROOM" :
-                         room.startsWith("CORRIDOR") ? "CORRIDOR" :
-                         room.startsWith("BEDROOM") ? "BEDROOM" : room;
-
-        const items = roomItems[baseType] || [];
-        let hasContent = false;
-        let roomBlock = `${room.toUpperCase()}\n`;
-
-        items.forEach(item => {
-            const key = `${room}||${item}`;
-            const entry = data[key];
-            if (entry && (entry.desc || entry.code)) {
-                hasContent = true;
-                roomBlock += `  → ${item}\n`;
-                roomBlock += `    Code: ${entry.code || "—"}\n`;
-                roomBlock += `    Description:\n${entry.desc ? entry.desc.split('\n').map(l => "      " + l).join('\n') : "      —"}\n`;
-                if (entry.cost) roomBlock += `    Est. Cost: $${entry.cost}\n`;
-                roomBlock += "\n";
-            }
-        });
-
-        if (hasContent) text += roomBlock;
+  roomList.forEach(room => {
+    if (room === "Inspection Notes") return;
+    const baseType = room.startsWith("KITCHEN") ? "KITCHEN" :
+                     room.startsWith("BATHROOM") ? "BATHROOM" :
+                     room.startsWith("CORRIDOR") ? "CORRIDOR" :
+                     room.startsWith("BEDROOM") || room === "MASTER BEDROOM" ? "BEDROOM" : room;
+    const items = roomItems[baseType] || [];
+    let hasContent = false;
+    let roomBlock = `${room.toUpperCase()}\n`;
+    items.forEach(item => {
+      const key = `${room}||${item}`;
+      const entry = data[key];
+      if (entry && (entry.desc || entry.code)) {
+        hasContent = true;
+        roomBlock += `  → ${item}\n`;
+        roomBlock += `    Code: ${entry.code || "—"}\n`;
+        roomBlock += `    Description:\n${entry.desc ? entry.desc.split("\n").map(l => "      " + l).join("\n") : "      —"}\n`;
+        if (entry.cost) roomBlock += `    Est. Cost: $${entry.cost}\n`;
+        roomBlock += "\n";
+      }
     });
+    if (hasContent) text += roomBlock;
+  });
 
-    if (data["__NOTES__"] && data["__NOTES__"].notes) {
-        text += "\nINSPECTION NOTES:\n";
-        text += data["__NOTES__"].notes.split('\n').map(l => l ? "  " + l : "").join('\n') + "\n";
-    }
+  if (data["__NOTES__"] && data["__NOTES__"].notes) {
+    text += "\nINSPECTION NOTES:\n";
+    text += data["__NOTES__"].notes.split("\n").map(l => l ? "  " + l : "").join("\n") + "\n";
+  }
 
-    text += "\nTotal Estimated Cost: $" + (document.getElementById("totalCost").value || "—") + "\n";
-
-    document.getElementById("output").textContent = text;
+  text += "\nTotal Estimated Cost: $" + (document.getElementById("totalCost").value || "—") + "\n";
+  document.getElementById("output").textContent = text;
+  document.getElementById("output").scrollIntoView({ behavior: "smooth" });
 }
 
 function saveData() {
-    localStorage.setItem("inspectionConfig", JSON.stringify({
-        numKitchens:   document.getElementById("numKitchens").value,
-        numBathrooms:  document.getElementById("numBathrooms").value,
-        numCorridors:  document.getElementById("numCorridors").value,
-        numBedrooms:   document.getElementById("numBedrooms").value
-    }));
-    localStorage.setItem("inspectionData", JSON.stringify(data));
-    alert("Configuration and data saved.");
+  localStorage.setItem("inspectionConfig", JSON.stringify({
+    numKitchens: document.getElementById("numKitchens").value,
+    numBathrooms: document.getElementById("numBathrooms").value,
+    numCorridors: document.getElementById("numCorridors").value,
+    numBedrooms: document.getElementById("numBedrooms").value,
+    tenant: document.getElementById("tenant").value,
+    landlord: document.getElementById("landlord").value,
+    address: document.getElementById("address").value,
+    projectNo: document.getElementById("projectNo").value,
+    inspector: document.getElementById("inspector").value,
+    date: document.getElementById("date").value,
+    nature: document.getElementById("nature").value,
+    requestedBy: document.getElementById("requestedBy").value,
+    totalCost: document.getElementById("totalCost").value
+  }));
+  localStorage.setItem("inspectionData", JSON.stringify(data));
+  alert("Saved on this phone.");
 }
 
 function loadData() {
-    const config = localStorage.getItem("inspectionConfig");
-    const savedData = localStorage.getItem("inspectionData");
-
-    if (config && savedData) {
-        const c = JSON.parse(config);
-        document.getElementById("numKitchens").value   = c.numKitchens   || "1";
-        document.getElementById("numBathrooms").value  = c.numBathrooms  || "1";
-        document.getElementById("numCorridors").value  = c.numCorridors  || "1";
-        document.getElementById("numBedrooms").value   = c.numBedrooms   || "1";
-        configureRooms();
-        data = JSON.parse(savedData);
-        alert("Loaded saved configuration and data.");
-    }
+  const config = localStorage.getItem("inspectionConfig");
+  const savedData = localStorage.getItem("inspectionData");
+  if (!config || !savedData) {
+    alert("No saved data on this phone.");
+    return;
+  }
+  const c = JSON.parse(config);
+  document.getElementById("numKitchens").value = c.numKitchens || "1";
+  document.getElementById("numBathrooms").value = c.numBathrooms || "1";
+  document.getElementById("numCorridors").value = c.numCorridors || "1";
+  document.getElementById("numBedrooms").value = c.numBedrooms || "1";
+  ["tenant","landlord","address","projectNo","inspector","date","nature","requestedBy","totalCost"].forEach(id => {
+    if (c[id] != null) document.getElementById(id).value = c[id];
+  });
+  configureRooms();
+  data = JSON.parse(savedData);
 }
 
 loadData();
 </script>
-
 </body>
 </html>
