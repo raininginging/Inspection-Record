@@ -587,24 +587,51 @@ ${wText("Signatures indicate that the Tenant and the Landlord agrees with the in
 </w:document>`;
 }
 
+const TEMPLATE_ROW_MAP = [];
+(function buildRowMap() {
+  let row = 2;
+  TEMPLATE_ROOMS.forEach(room => {
+    room.items.forEach(item => {
+      TEMPLATE_ROW_MAP.push({ row: row, aliases: room.aliases, item: item });
+      row += 1;
+    });
+  });
+})();
+
 async function buildWordBlob() {
   if (typeof JSZip === "undefined") throw new Error("JSZip failed to load");
-  const zip = new JSZip();
-  zip.file("[Content_Types].xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
-<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
-<Default Extension="xml" ContentType="application/xml"/>
-<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
-</Types>`);
-  zip.folder("_rels").file(".rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
-</Relationships>`);
-  const word = zip.folder("word");
-  word.file("document.xml", buildDocumentXml());
-  word.folder("_rels").file("document.xml.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>`);
-  return zip.generateAsync({ type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+  const templateHref = new URL("inspection-template.docx", window.location.href).toString();
+  const res = await fetch(templateHref);
+  if (!res.ok) throw new Error("Template missing");
+  const zip = await JSZip.loadAsync(await res.arrayBuffer());
+  let xml = await zip.file("word/document.xml").async("string");
+  const values = {
+    "{{H_TENANT}}": field("tenant"),
+    "{{H_LANDLORD}}": field("landlord"),
+    "{{H_ADDRESS}}": field("address"),
+    "{{H_PROJECT}}": field("projectNo"),
+    "{{H_INSPECTOR}}": field("inspector"),
+    "{{H_DATE}}": field("date"),
+    "{{H_NATURE}}": field("nature"),
+    "{{H_REQUESTED}}": field("requestedBy"),
+    "{{H_BEDROOMS}}": field("numBedrooms") || "1",
+    "{{H_TOTAL}}": field("totalCost") ? "$" + field("totalCost") : "",
+    "{{H_NOTES}}": ((data["__NOTES__"] && data["__NOTES__"].notes) || "") + (extraRoomNotes() ? "\n" + extraRoomNotes() : "")
+  };
+  TEMPLATE_ROW_MAP.forEach(function (rowInfo) {
+    const entry = mergeEntries(rowInfo.aliases, rowInfo.item);
+    values["{{R" + rowInfo.row + "_CODE}}"] = entry.code || "";
+    values["{{R" + rowInfo.row + "_DESC}}"] = entry.desc || "";
+    values["{{R" + rowInfo.row + "_COST}}"] = entry.cost || "";
+  });
+  Object.keys(values).forEach(function (token) {
+    xml = xml.split(token).join(xmlEscape(values[token]));
+  });
+  zip.file("word/document.xml", xml);
+  return zip.generateAsync({
+    type: "blob",
+    mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  });
 }
 
 async function shareWord() {
@@ -625,7 +652,7 @@ async function shareWord() {
     link.remove();
   } catch (err) {
     if (err && err.name === "AbortError") return;
-    alert("Could not create Word file. Check the internet connection (needed once to load the Word helper) and try again.");
+    alert("Could not fill the official Word template. Upload inspection-template.docx into the same GitHub folder as the webpage, wait a minute, then refresh.");
   }
 }
 
