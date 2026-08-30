@@ -169,11 +169,12 @@
 
 <div class="btn-row">
   <button type="button" onclick="generateOutput()">Generate Formatted Report</button>
-  <button type="button" class="secondary" onclick="shareReport()">Share Report</button>
+  <button type="button" class="secondary" onclick="shareWord()">Share Word</button>
 </div>
 
 <div id="output"></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
 const roomItems = {
   "KITCHEN": ["Windows and doors", "Walls / Trims", "Ceiling", "Flooring", "Stove (Ownership)", "Rangehood", "Refrigerator (Ownership)", "Dishwasher (Ownership)", "Sink / Faucets", "Cupboards", "Counter Top", "Electrical / Lighting", "Other"],
@@ -406,51 +407,226 @@ function generateOutput() {
   document.getElementById("output").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-function reportFileName() {
+function reportFileName(ext) {
   const project = (document.getElementById("projectNo").value || "").trim().replace(/[^\w\-]+/g, "_");
   const address = (document.getElementById("address").value || "").trim().replace(/[^\w\-]+/g, "_");
   const date = (document.getElementById("date").value || "").trim().replace(/[^\w\-]+/g, "_");
   const part = project || address || date || "inspection";
-  return "Inspection-Record-" + part + ".txt";
+  return "Inspection-Record-" + part + (ext || ".docx");
 }
 
-async function shareReport() {
+function xmlEscape(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function field(id) {
+  const el = document.getElementById(id);
+  return el ? el.value.trim() : "";
+}
+
+function mergeEntries(roomNames, item) {
+  const combined = { code: "", desc: "", cost: "" };
+  roomNames.forEach(room => {
+    const entry = data[`${room}||${item}`];
+    if (!entry) return;
+    if (entry.code && !combined.code) combined.code = entry.code;
+    if (entry.desc) combined.desc = combined.desc ? combined.desc + "\n" + entry.desc : entry.desc;
+    if (entry.cost) {
+      const a = parseFloat(combined.cost || "0");
+      const b = parseFloat(entry.cost || "0");
+      combined.cost = String((isNaN(a) ? 0 : a) + (isNaN(b) ? 0 : b) || entry.cost);
+    }
+  });
+  return combined;
+}
+
+function extraRoomNotes() {
+  const extras = [];
+  Object.keys(data).forEach(key => {
+    if (key === "__NOTES__" || !key.includes("||")) return;
+    const room = key.split("||")[0];
+    if (/^KITCHEN [2-9]$/.test(room) || /^BATHROOM [2-9]$/.test(room) || /^CORRIDOR [2-9]$/.test(room)) {
+      const item = key.split("||")[1];
+      const entry = data[key];
+      if (entry && (entry.code || entry.desc || entry.cost)) {
+        extras.push(`${room} / ${item}: ${[entry.code, entry.desc, entry.cost ? "$" + entry.cost : ""].filter(Boolean).join(" — ")}`);
+      }
+    }
+  });
+  return extras.join("\n");
+}
+
+const TEMPLATE_ROOMS = [
+  { title: "KITCHEN / CUISINE", aliases: ["KITCHEN 1", "KITCHEN"], items: roomItems.KITCHEN },
+  { title: "DINING ROOM / SALLE A DINER", aliases: ["DINING ROOM"], items: roomItems["DINING ROOM"] },
+  { title: "LIVING ROOM / SALON", aliases: ["LIVING ROOM"], items: roomItems["LIVING ROOM"] },
+  { title: "CORRIDOR", aliases: ["CORRIDOR 1", "CORRIDOR"], items: roomItems.CORRIDOR },
+  { title: "MASTER BEDROOMS / CHAMBRE DES MAITRES", aliases: ["MASTER BEDROOM"], items: roomItems.BEDROOM },
+  { title: "BEDROOM 2 / CHAMBRE A COUCHER 2", aliases: ["BEDROOM 2"], items: roomItems.BEDROOM },
+  { title: "BEDROOM 3 / CHAMBRE A COUCHER 3", aliases: ["BEDROOM 3"], items: roomItems.BEDROOM },
+  { title: "BEDROOM 4 / CHAMBRE A COUCHER 4", aliases: ["BEDROOM 4"], items: roomItems.BEDROOM },
+  { title: "BEDROOM 5 / CHAMBRE A COUCHER 5", aliases: ["BEDROOM 5"], items: roomItems.BEDROOM },
+  { title: "BATHROOM / SALLE DE BAIN", aliases: ["BATHROOM 1", "BATHROOM"], items: roomItems.BATHROOM },
+  { title: "LAUNDRY ROOM / SALLE DE LAVAGE", aliases: ["LAUNDRY ROOM"], items: roomItems["LAUNDRY ROOM"] },
+  { title: "STAIRWELLS / PUIT D'ESCALIER", aliases: ["STAIRWELLS"], items: roomItems.STAIRWELLS },
+  { title: "BASEMENT / SOUS-SOL", aliases: ["BASEMENT"], items: roomItems.BASEMENT },
+  { title: "MECHANICAL / MECANIQUE", aliases: ["MECHANICAL"], items: roomItems.MECHANICAL },
+  { title: "ELECTRICAL / ELECTRICITE", aliases: ["ELECTRICAL"], items: roomItems.ELECTRICAL },
+  { title: "GENERAL / GENERAL", aliases: ["GENERAL"], items: roomItems.GENERAL },
+  { title: "EXTERIOR / EXTERIEUR", aliases: ["EXTERIOR"], items: roomItems.EXTERIOR }
+];
+
+function wText(text, bold) {
+  return `<w:p><w:pPr><w:spacing w:after="60"/></w:pPr><w:r>${bold ? "<w:rPr><w:b/></w:rPr>" : ""}<w:t xml:space="preserve">${xmlEscape(text)}</w:t></w:r></w:p>`;
+}
+
+function wCell(text, width, bold, span) {
+  const grid = span ? `<w:gridSpan w:val="${span}"/>` : "";
+  return `<w:tc><w:tcPr><w:tcW w:w="${width}" w:type="dxa"/>${grid}<w:tcBorders>
+    <w:top w:val="single" w:sz="4" w:color="666666"/>
+    <w:left w:val="single" w:sz="4" w:color="666666"/>
+    <w:bottom w:val="single" w:sz="4" w:color="666666"/>
+    <w:right w:val="single" w:sz="4" w:color="666666"/>
+  </w:tcBorders></w:tcPr>${wText(text, bold)}</w:tc>`;
+}
+
+function wRow(cells) {
+  return `<w:tr>${cells.join("")}</w:tr>`;
+}
+
+function buildDocumentXml() {
+  const tenant = field("tenant");
+  const landlord = field("landlord");
+  const address = field("address");
+  const projectNo = field("projectNo");
+  const inspector = field("inspector");
+  const date = field("date");
+  const nature = field("nature");
+  const requestedBy = field("requestedBy");
+  const totalCost = field("totalCost");
+  const bedrooms = field("numBedrooms") || "1";
+  let notes = (data["__NOTES__"] && data["__NOTES__"].notes) || "";
+  const extras = extraRoomNotes();
+  if (extras) notes = notes ? notes + "\n" + extras : extras;
+
+  const W = [2200, 3200, 1200, 2800, 1200];
+  let rows = "";
+  rows += wRow([
+    wCell("ROOM / PIECE", W[0], true),
+    wCell("ITEM", W[1], true),
+    wCell("CODE", W[2], true),
+    wCell("CONDITION / DESCRIPTION", W[3], true),
+    wCell("EST. COST", W[4], true)
+  ]);
+
+  TEMPLATE_ROOMS.forEach(room => {
+    room.items.forEach((item, idx) => {
+      const entry = mergeEntries(room.aliases, item);
+      rows += wRow([
+        wCell(idx === 0 ? room.title : "", W[0], idx === 0),
+        wCell(item, W[1], false),
+        wCell(entry.code || "", W[2], false),
+        wCell(entry.desc || "", W[3], false),
+        wCell(entry.cost || "", W[4], false)
+      ]);
+    });
+  });
+
+  rows += wRow([
+    wCell("Total Estimated Cost / Cout Estimes Total", W[0] + W[1] + W[2] + W[3], true, 4),
+    wCell(totalCost ? "$" + totalCost : "", W[4], true)
+  ]);
+  rows += wRow([
+    wCell("Rental Charge (monthly) / Montant du loye (mensuel)", W[0] + W[1] + W[2] + W[3], false, 4),
+    wCell("", W[4], false)
+  ]);
+  rows += wRow([
+    wCell("Tenant Damage Deposit Amount Paid / Depot paye", W[0] + W[1] + W[2] + W[3], false, 4),
+    wCell("", W[4], false)
+  ]);
+  rows += wRow([
+    wCell("Total Payable / Montant payable", W[0] + W[1] + W[2] + W[3], true, 4),
+    wCell("", W[4], false)
+  ]);
+
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+<w:body>
+${wText("Inspection - Rental Unit / Inspection – Logement locatif", true)}
+${wText("REPAIR CODES: A Acceptable; Re Repair; Rp Replace; ReCB Repair Charge Back; RpCB Replace Charge Back; HI Housekeeping issue; Blank Not applicable; Ni Not inspected", false)}
+${wText("Inspection request / Demande d'inspection", true)}
+${wText("Requested by / Demande par: " + requestedBy, false)}
+${wText("Nature of Inspection / Nature de l'inspection: " + nature, false)}
+${wText("Program / Programme: ", false)}
+${wText("Special instructions / Instructions speciales: ", false)}
+${wText("Tenant / Locataire", true)}
+${wText("Name of Tenant / Nom du locataire: " + tenant, false)}
+${wText("Name of landlord / Nom du proprietaire: " + landlord, false)}
+${wText("Rental unit address / Adresse: " + address, false)}
+${wText("Project no / No du projet: " + projectNo, false)}
+${wText("No. of Bedrooms / No. de chambre a coucher: " + bedrooms, false)}
+${wText("Inspector name / Nom de l'inspecteur: " + inspector, false)}
+${wText("Inspection date: " + date, false)}
+<w:tbl>
+<w:tblPr><w:tblW w:w="10600" w:type="dxa"/><w:tblLayout w:type="fixed"/></w:tblPr>
+<w:tblGrid><w:gridCol w:w="2200"/><w:gridCol w:w="3200"/><w:gridCol w:w="1200"/><w:gridCol w:w="2800"/><w:gridCol w:w="1200"/></w:tblGrid>
+${rows}
+</w:tbl>
+${wText("Inspection Notes / Notes d'inspection:", true)}
+${wText(notes, false)}
+${wText("Inspector's Signature / Signature de l'inspecteur: ______________________    Date: __________", false)}
+${wText("Tenant's Signature / Signature du locataire: ______________________", false)}
+${wText("Landlord's (Agent's) Signature / Signature du proprietaire ou agent: ______________________", false)}
+${wText("Signatures indicate that the Tenant and the Landlord agrees with the inspection results as noted above.", false)}
+<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="720" w:right="720" w:bottom="720" w:left="720"/></w:sectPr>
+</w:body>
+</w:document>`;
+}
+
+async function buildWordBlob() {
+  if (typeof JSZip === "undefined") throw new Error("JSZip failed to load");
+  const zip = new JSZip();
+  zip.file("[Content_Types].xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+<Default Extension="xml" ContentType="application/xml"/>
+<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>`);
+  zip.folder("_rels").file(".rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`);
+  const word = zip.folder("word");
+  word.file("document.xml", buildDocumentXml());
+  word.folder("_rels").file("document.xml.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>`);
+  return zip.generateAsync({ type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+}
+
+async function shareWord() {
   generateOutput();
-  const report = (document.getElementById("output").textContent || "").trim();
-  if (!report) {
-    alert("No report to share yet.");
-    return;
-  }
-
-  const fileName = reportFileName();
-  const file = new File([report], fileName, { type: "text/plain" });
-
+  const fileName = reportFileName(".docx");
   try {
+    const blob = await buildWordBlob();
+    const file = new File([blob], fileName, { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({
-        title: "Rental Unit Inspection Record",
-        text: fileName,
-        files: [file]
-      });
+      await navigator.share({ title: "Rental Unit Inspection Record", files: [file] });
       return;
     }
-    if (navigator.share) {
-      await navigator.share({
-        title: "Rental Unit Inspection Record",
-        text: report
-      });
-      return;
-    }
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
   } catch (err) {
     if (err && err.name === "AbortError") return;
+    alert("Could not create Word file. Check the internet connection (needed once to load the Word helper) and try again.");
   }
-
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(new Blob([report], { type: "text/plain" }));
-  link.download = fileName;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
 }
 
 function saveData(silent) {
