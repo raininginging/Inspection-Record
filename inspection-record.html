@@ -169,6 +169,7 @@
 
 <div class="btn-row">
   <button type="button" onclick="generateOutput()">Generate Formatted Report</button>
+  <button type="button" class="secondary" onclick="copyReport()">Copy Report</button>
   <button type="button" class="secondary" onclick="saveData()">Save to Browser</button>
   <button type="button" class="secondary" onclick="loadData()">Load Saved Data</button>
 </div>
@@ -227,7 +228,47 @@ function configureRooms() {
   window.scrollTo({ top: document.getElementById("roomSelectSection").offsetTop - 12, behavior: "smooth" });
 }
 
+function currentRoomName() {
+  return document.getElementById("roomSelect") ? document.getElementById("roomSelect").value : "";
+}
+
+function flushVisibleInputs() {
+  const notesEl = document.getElementById("inspectionNotes");
+  if (notesEl) data["__NOTES__"] = { notes: notesEl.value.trim() };
+
+  const selected = currentRoomName();
+  if (!selected || selected === "Inspection Notes") return;
+  const baseType = selected.startsWith("KITCHEN") ? "KITCHEN" :
+                   selected.startsWith("BATHROOM") ? "BATHROOM" :
+                   selected.startsWith("CORRIDOR") ? "CORRIDOR" :
+                   selected.startsWith("BEDROOM") || selected === "MASTER BEDROOM" ? "BEDROOM" : selected;
+  const items = roomItems[baseType] || [];
+  items.forEach((item, index) => {
+    const codeEl = document.getElementById(`code-${index}`);
+    const descEl = document.getElementById(`desc-${index}`);
+    const costEl = document.getElementById(`cost-${index}`);
+    if (!codeEl || !descEl || !costEl) return;
+    const code = codeEl.value.trim();
+    const desc = descEl.value.trim();
+    const cost = costEl.value.trim();
+    const key = `${selected}||${item}`;
+    if (code || desc || cost) data[key] = { code, desc, cost };
+    else delete data[key];
+  });
+}
+
+function roomsFromSavedData() {
+  const rooms = [];
+  Object.keys(data).forEach(key => {
+    if (key === "__NOTES__" || !key.includes("||")) return;
+    const room = key.split("||")[0];
+    if (room && !rooms.includes(room)) rooms.push(room);
+  });
+  return rooms;
+}
+
 function showRoomTable() {
+  flushVisibleInputs();
   const selected = document.getElementById("roomSelect").value;
   const container = document.getElementById("currentRoomTable");
   container.innerHTML = "";
@@ -269,13 +310,14 @@ function showRoomTable() {
         <textarea id="desc-${index}" placeholder="Multiple lines OK">${escapeHtml(saved.desc || "")}</textarea>
         <label style="margin-top:10px;">Est. Cost ($)</label>
         <input type="number" id="cost-${index}" step="10" min="0" value="${escapeHtml(saved.cost || "")}">
-        <div class="btn-row" style="margin-top:12px;margin-bottom:0;">
-          <button type="button" onclick="updateEntry(${JSON.stringify(key)}, ${index})">Save Item</button>
-        </div>
       </div>
     `;
   });
   container.innerHTML = html;
+  container.querySelectorAll("select, textarea, input").forEach(el => {
+    el.addEventListener("change", flushVisibleInputs);
+    el.addEventListener("blur", flushVisibleInputs);
+  });
 }
 
 function escapeHtml(value) {
@@ -305,6 +347,23 @@ function saveNotes() {
 }
 
 function generateOutput() {
+  flushVisibleInputs();
+  saveData(true);
+
+  let rooms = roomList.filter(room => room !== "Inspection Notes");
+  roomsFromSavedData().forEach(room => {
+    if (!rooms.includes(room)) rooms.push(room);
+  });
+
+  let itemTotal = 0;
+  Object.keys(data).forEach(key => {
+    const cost = parseFloat((data[key] && data[key].cost) || "");
+    if (!isNaN(cost)) itemTotal += cost;
+  });
+  if (itemTotal && !document.getElementById("totalCost").value) {
+    document.getElementById("totalCost").value = String(itemTotal);
+  }
+
   let text = "RENTAL UNIT INSPECTION RECORD\n".padEnd(60, "-") + "\n\n";
   text += `Tenant .......... ${document.getElementById("tenant").value.trim() || "—"}\n`;
   text += `Landlord ........ ${document.getElementById("landlord").value.trim() || "—"}\n`;
@@ -315,7 +374,7 @@ function generateOutput() {
   text += `Nature .......... ${document.getElementById("nature").value.trim() || "—"}\n`;
   text += `Requested by .... ${document.getElementById("requestedBy").value.trim() || "—"}\n\n`;
 
-  roomList.forEach(room => {
+  rooms.forEach(room => {
     if (room === "Inspection Notes") return;
     const baseType = room.startsWith("KITCHEN") ? "KITCHEN" :
                      room.startsWith("BATHROOM") ? "BATHROOM" :
@@ -346,10 +405,24 @@ function generateOutput() {
 
   text += "\nTotal Estimated Cost: $" + (document.getElementById("totalCost").value || "—") + "\n";
   document.getElementById("output").textContent = text;
-  document.getElementById("output").scrollIntoView({ behavior: "smooth" });
+  document.getElementById("output").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-function saveData() {
+function copyReport() {
+  const text = document.getElementById("output").textContent || "";
+  if (!text.trim()) {
+    generateOutput();
+  }
+  const report = document.getElementById("output").textContent || "";
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(report);
+    alert("Report copied.");
+  } else {
+    alert("Copy the report text manually.");
+  }
+}
+
+function saveData(silent) {
   localStorage.setItem("inspectionConfig", JSON.stringify({
     numKitchens: document.getElementById("numKitchens").value,
     numBathrooms: document.getElementById("numBathrooms").value,
@@ -366,14 +439,14 @@ function saveData() {
     totalCost: document.getElementById("totalCost").value
   }));
   localStorage.setItem("inspectionData", JSON.stringify(data));
-  alert("Saved on this phone.");
+  if (!silent) alert("Saved on this phone.");
 }
 
-function loadData() {
+function loadData(silent) {
   const config = localStorage.getItem("inspectionConfig");
   const savedData = localStorage.getItem("inspectionData");
   if (!config || !savedData) {
-    alert("No saved data on this phone.");
+    if (!silent) alert("No saved data on this phone.");
     return;
   }
   const c = JSON.parse(config);
@@ -388,7 +461,7 @@ function loadData() {
   data = JSON.parse(savedData);
 }
 
-loadData();
+loadData(true);
 </script>
 </body>
 </html>
