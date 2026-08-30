@@ -169,9 +169,7 @@
 
 <div class="btn-row">
   <button type="button" onclick="generateOutput()">Generate Formatted Report</button>
-  <button type="button" class="secondary" onclick="copyReport()">Copy Report</button>
-  <button type="button" class="secondary" onclick="saveData()">Save to Browser</button>
-  <button type="button" class="secondary" onclick="loadData()">Load Saved Data</button>
+  <button type="button" class="secondary" onclick="shareReport()">Share Report</button>
 </div>
 
 <div id="output"></div>
@@ -408,18 +406,51 @@ function generateOutput() {
   document.getElementById("output").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-function copyReport() {
-  const text = document.getElementById("output").textContent || "";
-  if (!text.trim()) {
-    generateOutput();
+function reportFileName() {
+  const project = (document.getElementById("projectNo").value || "").trim().replace(/[^\w\-]+/g, "_");
+  const address = (document.getElementById("address").value || "").trim().replace(/[^\w\-]+/g, "_");
+  const date = (document.getElementById("date").value || "").trim().replace(/[^\w\-]+/g, "_");
+  const part = project || address || date || "inspection";
+  return "Inspection-Record-" + part + ".txt";
+}
+
+async function shareReport() {
+  generateOutput();
+  const report = (document.getElementById("output").textContent || "").trim();
+  if (!report) {
+    alert("No report to share yet.");
+    return;
   }
-  const report = document.getElementById("output").textContent || "";
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(report);
-    alert("Report copied.");
-  } else {
-    alert("Copy the report text manually.");
+
+  const fileName = reportFileName();
+  const file = new File([report], fileName, { type: "text/plain" });
+
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({
+        title: "Rental Unit Inspection Record",
+        text: fileName,
+        files: [file]
+      });
+      return;
+    }
+    if (navigator.share) {
+      await navigator.share({
+        title: "Rental Unit Inspection Record",
+        text: report
+      });
+      return;
+    }
+  } catch (err) {
+    if (err && err.name === "AbortError") return;
   }
+
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(new Blob([report], { type: "text/plain" }));
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
 }
 
 function saveData(silent) {
