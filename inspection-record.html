@@ -518,8 +518,21 @@ function formatOneRoom(room) {
   return text;
 }
 
+function sumEstimatedCost() {
+  let total = 0;
+  Object.keys(data).forEach(key => {
+    if (key === "__NOTES__" || !data[key]) return;
+    const cost = parseFloat(data[key].cost);
+    if (!isNaN(cost)) total += cost;
+  });
+  const el = document.getElementById("totalCost");
+  if (el) el.value = total ? String(total) : "";
+  return total;
+}
+
 function saveRoom() {
   flushVisibleInputs();
+  sumEstimatedCost();
   saveData(true);
   const room = activeRoom;
   const report = document.getElementById("roomReport");
@@ -537,6 +550,7 @@ function saveRoom() {
 
 function backToUnit() {
   flushVisibleInputs();
+  sumEstimatedCost();
   saveData(true);
   document.getElementById("roomScreen").style.display = "none";
   document.getElementById("formScreen").style.display = "block";
@@ -560,14 +574,7 @@ function generateOutput() {
     if (!rooms.includes(room)) rooms.push(room);
   });
 
-  let itemTotal = 0;
-  Object.keys(data).forEach(key => {
-    const cost = parseFloat((data[key] && data[key].cost) || "");
-    if (!isNaN(cost)) itemTotal += cost;
-  });
-  if (itemTotal && !document.getElementById("totalCost").value) {
-    document.getElementById("totalCost").value = String(itemTotal);
-  }
+  const itemTotal = sumEstimatedCost();
 
   let text = "RENTAL UNIT INSPECTION RECORD\n".padEnd(60, "-") + "\n\n";
   text += `Tenant .......... ${document.getElementById("tenant").value.trim() || "—"}\n`;
