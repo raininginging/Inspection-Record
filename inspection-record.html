@@ -269,21 +269,27 @@
 
 <div id="roomSelectSection" class="card">
   <h2>Select Room to Inspect</h2>
-  <p class="hint">Choose one room, fill it, then choose the next. Scroll to move down.</p>
-  <select id="roomSelect" onchange="showRoomTable()">
+  <p class="hint">Pick a room to open its own page.</p>
+  <select id="roomSelect" onchange="openRoomPage()">
     <option value="">-- Choose a Room --</option>
   </select>
 </div>
-
-<div id="currentRoomTable" class="card"></div>
-
-<div class="btn-row">
-  <button type="button" onclick="generateOutput()">Generate Formatted Report</button>
-  <button type="button" class="secondary" onclick="shareWord()">Share Word</button>
-  <button type="button" onclick="saveCurrentRecord()">Save</button>
 </div>
 
-<div id="output"></div>
+<div id="roomScreen" class="screen" style="display:none;padding:calc(12px + env(safe-area-inset-top)) var(--pad) calc(28px + env(safe-area-inset-bottom));">
+  <div class="nav" style="margin: -12px calc(-1 * var(--pad)) 16px;">
+    <button type="button" class="nav-btn" onclick="backToUnit()">Unit</button>
+    <h1 id="roomTitle">Room</h1>
+    <span style="width:64px"></span>
+  </div>
+  <div id="currentRoomTable" class="card"></div>
+  <div class="btn-row">
+    <button type="button" onclick="saveRoom()">Save Room</button>
+    <button type="button" onclick="generateOutput()">Generate Formatted Report</button>
+    <button type="button" class="secondary" onclick="shareWord()">Share Word</button>
+    <button type="button" onclick="saveCurrentRecord()">Save</button>
+  </div>
+  <div id="output"></div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -384,6 +390,10 @@ function roomsFromSavedData() {
   return rooms;
 }
 
+function openRoomPage() {
+  showRoomTable();
+}
+
 function showRoomTable() {
   flushVisibleInputs();
   const selected = document.getElementById("roomSelect").value ||
@@ -394,15 +404,16 @@ function showRoomTable() {
   container.innerHTML = "";
   container.style.display = "none";
   if (!selected) return;
+  document.getElementById("roomTitle").textContent = selected;
+  document.getElementById("formScreen").style.display = "none";
+  document.getElementById("roomScreen").style.display = "block";
+  window.scrollTo(0, 0);
 
   if (selected === "Inspection Notes") {
     container.style.display = "block";
     container.innerHTML = `
       <h2>Inspection Notes</h2>
       <textarea id="inspectionNotes" placeholder="General notes (multi-line OK)..."></textarea>
-      <div class="btn-row" style="margin-top:12px;">
-        <button type="button" onclick="saveRoom()">Save Room</button>
-      </div>
       <div class="card" style="margin:16px 0 0;padding:12px;">
         <h2>Select Next Room</h2>
         <select id="roomSelectBottom" onchange="showRoomFromBottom()">
@@ -441,12 +452,9 @@ function showRoomTable() {
     `;
   });
   html += `
-    <div class="btn-row" style="margin-top:16px;">
-      <button type="button" onclick="saveRoom()">Save Room</button>
-    </div>
     <div class="card" style="margin:8px 0 0;padding:12px;">
       <h2>Select Next Room</h2>
-      <p class="hint">Save this room first, then pick the next one here. You do not need to scroll back up.</p>
+      <p class="hint">Save this room, then pick the next one.</p>
       <select id="roomSelectBottom" onchange="showRoomFromBottom()"></select>
     </div>
   `;
@@ -483,8 +491,16 @@ function saveNotes() {
 function saveRoom() {
   flushVisibleInputs();
   saveData(true);
-  const next = document.getElementById("roomSelectBottom");
-  if (next) next.scrollIntoView({ behavior: "smooth", block: "center" });
+  alert("Room saved.");
+}
+
+function backToUnit() {
+  flushVisibleInputs();
+  saveData(true);
+  document.getElementById("roomScreen").style.display = "none";
+  document.getElementById("formScreen").style.display = "block";
+  if (document.getElementById("roomSelect")) document.getElementById("roomSelect").value = "";
+  window.scrollTo(0, 0);
 }
 
 function showRoomFromBottom() {
@@ -893,6 +909,7 @@ function renderList() {
 function showList() {
   document.getElementById("listScreen").style.display = "block";
   document.getElementById("formScreen").style.display = "none";
+  document.getElementById("roomScreen").style.display = "none";
   currentId = null;
   renderList();
 }
@@ -900,6 +917,7 @@ function showList() {
 function showForm() {
   document.getElementById("listScreen").style.display = "none";
   document.getElementById("formScreen").style.display = "block";
+  document.getElementById("roomScreen").style.display = "none";
   window.scrollTo(0, 0);
 }
 
