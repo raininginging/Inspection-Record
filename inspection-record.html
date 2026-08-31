@@ -26,8 +26,87 @@
     color: var(--text);
     font-size: 17px;
     line-height: 1.45;
-    padding: calc(12px + env(safe-area-inset-top)) var(--pad) calc(28px + env(safe-area-inset-bottom));
+    padding: 0;
   }
+  .screen { min-height: 100vh; }
+  #listScreen { background: #fff; }
+  .nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
+    background: #f2f2f7;
+    border-bottom: 1px solid #d6d6dc;
+  }
+  .nav h1 { font-size: 17px; margin: 0; font-weight: 700; text-align: center; flex: 1; }
+  .nav-btn {
+    width: auto;
+    min-height: 0;
+    padding: 6px 4px;
+    background: none;
+    color: #007aff;
+    font-size: 17px;
+    font-weight: 400;
+  }
+  .nav-btn.strong { font-size: 28px; line-height: 1; font-weight: 300; }
+  .record-list { list-style: none; margin: 0; padding: 0 0 env(safe-area-inset-bottom); }
+  .record-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e5e5ea;
+    background: #fff;
+  }
+  .record-main { flex: 1; min-width: 0; }
+  .record-name { font-size: 17px; }
+  .record-meta { color: #8e8e93; font-size: 13px; margin-top: 2px; }
+  .delete-btn {
+    width: 28px;
+    min-height: 28px;
+    height: 28px;
+    padding: 0;
+    border-radius: 50%;
+    background: #ff3b30;
+    font-size: 22px;
+    line-height: 26px;
+    font-weight: 400;
+  }
+  .empty { text-align: center; color: #8e8e93; padding: 48px 24px; }
+  #formScreen { display: none; padding: calc(12px + env(safe-area-inset-top)) var(--pad) calc(28px + env(safe-area-inset-bottom)); }
+  .dialog-mask {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.35);
+    align-items: center;
+    justify-content: center;
+    z-index: 20;
+    padding: 24px;
+  }
+  .dialog {
+    width: 100%;
+    max-width: 320px;
+    background: #fff;
+    border-radius: 14px;
+    overflow: hidden;
+    text-align: center;
+  }
+  .dialog h2 { margin: 18px 16px 10px; font-size: 18px; }
+  .dialog input {
+    width: calc(100% - 32px);
+    margin: 0 16px 14px;
+    min-height: 40px;
+  }
+  .dialog-actions { display: flex; border-top: 1px solid #d6d6dc; }
+  .dialog-actions button {
+    flex: 1;
+    background: none;
+    color: #007aff;
+    min-height: 44px;
+    font-weight: 400;
+  }
+  .dialog-actions button + button { border-left: 1px solid #d6d6dc; font-weight: 600; }
   h1 { font-size: 1.45rem; margin: 8px 0 18px; }
   h2 { font-size: 1.15rem; margin: 0 0 12px; }
   label {
@@ -102,7 +181,33 @@
 </head>
 <body>
 
-<h1>Rental Unit Inspection Form</h1>
+<div id="listScreen" class="screen">
+  <div class="nav">
+    <button type="button" class="nav-btn" id="editListBtn" onclick="toggleEditList()">Edit</button>
+    <h1>Inspection Record</h1>
+    <button type="button" class="nav-btn strong" onclick="openNewDialog()">+</button>
+  </div>
+  <ul id="recordList" class="record-list"></ul>
+</div>
+
+<div id="newDialog" class="dialog-mask">
+  <div class="dialog">
+    <h2>New Inspection</h2>
+    <input type="text" id="newName" placeholder="New Inspection" enterkeyhint="done">
+    <div class="dialog-actions">
+      <button type="button" onclick="closeNewDialog()">Cancel</button>
+      <button type="button" onclick="createInspection()">OK</button>
+    </div>
+  </div>
+</div>
+
+<div id="formScreen" class="screen">
+  <div class="nav" style="margin: -12px calc(-1 * var(--pad)) 16px;">
+    <button type="button" class="nav-btn" onclick="backToList()">Records</button>
+    <h1 id="formTitle">Inspection</h1>
+    <span style="width:64px"></span>
+  </div>
+  <h1>Rental Unit Inspection Form</h1>
 
 <div class="card stack">
   <div><label for="tenant">Tenant Name</label><input type="text" id="tenant"></div>
@@ -170,9 +275,11 @@
 <div class="btn-row">
   <button type="button" onclick="generateOutput()">Generate Formatted Report</button>
   <button type="button" class="secondary" onclick="shareWord()">Share Word</button>
+  <button type="button" onclick="saveCurrentRecord()">Save</button>
 </div>
 
 <div id="output"></div>
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
@@ -666,8 +773,13 @@ async function shareWord() {
   }
 }
 
-function saveData(silent) {
-  localStorage.setItem("inspectionConfig", JSON.stringify({
+const RECORDS_KEY = "inspectionRecords.v1";
+let records = [];
+let currentId = null;
+let editingList = false;
+
+function readFormConfig() {
+  return {
     numKitchens: document.getElementById("numKitchens").value,
     numBathrooms: document.getElementById("numBathrooms").value,
     numCorridors: document.getElementById("numCorridors").value,
@@ -681,31 +793,153 @@ function saveData(silent) {
     nature: document.getElementById("nature").value,
     requestedBy: document.getElementById("requestedBy").value,
     totalCost: document.getElementById("totalCost").value
-  }));
-  localStorage.setItem("inspectionData", JSON.stringify(data));
-  if (!silent) alert("Saved on this phone.");
+  };
 }
 
-function loadData(silent) {
-  const config = localStorage.getItem("inspectionConfig");
-  const savedData = localStorage.getItem("inspectionData");
-  if (!config || !savedData) {
-    if (!silent) alert("No saved data on this phone.");
-    return;
-  }
-  const c = JSON.parse(config);
+function writeFormConfig(c) {
+  c = c || {};
   document.getElementById("numKitchens").value = c.numKitchens || "1";
   document.getElementById("numBathrooms").value = c.numBathrooms || "1";
   document.getElementById("numCorridors").value = c.numCorridors || "1";
   document.getElementById("numBedrooms").value = c.numBedrooms || "1";
   ["tenant","landlord","address","projectNo","inspector","date","nature","requestedBy","totalCost"].forEach(id => {
-    if (c[id] != null) document.getElementById(id).value = c[id];
+    document.getElementById(id).value = c[id] != null ? c[id] : "";
   });
-  configureRooms();
-  data = JSON.parse(savedData);
 }
 
-loadData(true);
+function persistRecords() {
+  localStorage.setItem(RECORDS_KEY, JSON.stringify(records));
+}
+
+function loadRecords() {
+  try {
+    records = JSON.parse(localStorage.getItem(RECORDS_KEY) || "[]");
+  } catch (e) {
+    records = [];
+  }
+}
+
+function formatDate(iso) {
+  if (!iso) return "";
+  return String(iso).slice(0, 10);
+}
+
+function filledCount(entryMap) {
+  return Object.keys(entryMap || {}).filter(k => k !== "__NOTES__" && entryMap[k] && (entryMap[k].code || entryMap[k].desc || entryMap[k].cost)).length;
+}
+
+function renderList() {
+  const list = document.getElementById("recordList");
+  if (!records.length) {
+    list.innerHTML = '<li class="empty">No inspection records yet.<br>Tap + to start one.</li>';
+    return;
+  }
+  const sorted = records.slice().sort((a, b) => (b.updated || b.created || "").localeCompare(a.updated || a.created || ""));
+  list.innerHTML = sorted.map(rec => {
+    const count = filledCount(rec.data);
+    const when = formatDate(rec.updated || rec.created);
+    return `<li class="record-row" data-id="${rec.id}">
+      ${editingList ? `<button type="button" class="delete-btn" onclick="event.stopPropagation(); deleteRecord('${rec.id}')">−</button>` : ""}
+      <div class="record-main" onclick="openRecord('${rec.id}')">
+        <div class="record-name">${escapeHtml(rec.name || "Untitled")}</div>
+        <div class="record-meta">${when}${count ? " · " + count : ""}</div>
+      </div>
+    </li>`;
+  }).join("");
+}
+
+function showList() {
+  document.getElementById("listScreen").style.display = "block";
+  document.getElementById("formScreen").style.display = "none";
+  currentId = null;
+  renderList();
+}
+
+function showForm() {
+  document.getElementById("listScreen").style.display = "none";
+  document.getElementById("formScreen").style.display = "block";
+  window.scrollTo(0, 0);
+}
+
+function toggleEditList() {
+  editingList = !editingList;
+  document.getElementById("editListBtn").textContent = editingList ? "Done" : "Edit";
+  renderList();
+}
+
+function openNewDialog() {
+  document.getElementById("newName").value = "";
+  document.getElementById("newDialog").style.display = "flex";
+  setTimeout(() => document.getElementById("newName").focus(), 50);
+}
+
+function closeNewDialog() {
+  document.getElementById("newDialog").style.display = "none";
+}
+
+function createInspection() {
+  const name = document.getElementById("newName").value.trim() || "New Inspection";
+  const now = new Date().toISOString();
+  const rec = { id: String(Date.now()), name, created: now, updated: now, config: {}, data: {} };
+  records.unshift(rec);
+  persistRecords();
+  closeNewDialog();
+  if (editingList) toggleEditList();
+  openRecord(rec.id);
+}
+
+function openRecord(id) {
+  const rec = records.find(r => r.id === id);
+  if (!rec) return;
+  currentId = id;
+  data = JSON.parse(JSON.stringify(rec.data || {}));
+  writeFormConfig(rec.config);
+  document.getElementById("formTitle").textContent = rec.name || "Inspection";
+  document.getElementById("currentRoomTable").style.display = "none";
+  document.getElementById("currentRoomTable").innerHTML = "";
+  document.getElementById("output").textContent = "";
+  if (rec.config && rec.config.numKitchens) configureRooms();
+  else {
+    document.getElementById("roomSelectSection").style.display = "none";
+    roomList = [];
+  }
+  showForm();
+}
+
+function backToList() {
+  saveData(true);
+  showList();
+}
+
+function deleteRecord(id) {
+  records = records.filter(r => r.id !== id);
+  persistRecords();
+  renderList();
+}
+
+function saveData(silent) {
+  flushVisibleInputs();
+  if (!currentId) return;
+  const rec = records.find(r => r.id === currentId);
+  if (!rec) return;
+  rec.config = readFormConfig();
+  rec.data = JSON.parse(JSON.stringify(data));
+  rec.updated = new Date().toISOString();
+  persistRecords();
+  if (!silent) alert("Saved.");
+}
+
+function saveCurrentRecord() {
+  generateOutput();
+  saveData(false);
+}
+
+document.getElementById("newName").addEventListener("keydown", function (e) {
+  if (e.key === "Enter") createInspection();
+});
+
+loadRecords();
+showList();
 </script>
 </body>
 </html>
