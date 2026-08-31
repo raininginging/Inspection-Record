@@ -274,6 +274,12 @@
     <option value="">-- Choose a Room --</option>
   </select>
 </div>
+
+<div class="btn-row">
+  <button type="button" onclick="generateOutput()">Generate Formatted Report</button>
+  <button type="button" class="secondary" onclick="shareWord()">Share Word</button>
+</div>
+<div id="output"></div>
 </div>
 
 <div id="roomScreen" class="screen" style="display:none;padding:calc(12px + env(safe-area-inset-top)) var(--pad) calc(28px + env(safe-area-inset-bottom));">
@@ -285,11 +291,12 @@
   <div id="currentRoomTable" class="card"></div>
   <div class="btn-row">
     <button type="button" onclick="saveRoom()">Save Room</button>
-    <button type="button" onclick="generateOutput()">Generate Formatted Report</button>
-    <button type="button" class="secondary" onclick="shareWord()">Share Word</button>
-    <button type="button" onclick="saveCurrentRecord()">Save</button>
   </div>
-  <div id="output"></div>
+  <div id="roomReport" class="card" style="display:none;white-space:pre-wrap;font-family:ui-monospace,Consolas,monospace;font-size:14px;"></div>
+  <div id="nextRoomCard" class="card" style="display:none;">
+    <h2>Select Next Room</h2>
+    <select id="roomSelectBottom" onchange="showRoomFromBottom()"></select>
+  </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -409,22 +416,16 @@ function showRoomTable() {
   document.getElementById("roomScreen").style.display = "block";
   window.scrollTo(0, 0);
 
+  hideRoomFollowup();
   if (selected === "Inspection Notes") {
     container.style.display = "block";
     container.innerHTML = `
       <h2>Inspection Notes</h2>
       <textarea id="inspectionNotes" placeholder="General notes (multi-line OK)..."></textarea>
-      <div class="card" style="margin:16px 0 0;padding:12px;">
-        <h2>Select Next Room</h2>
-        <select id="roomSelectBottom" onchange="showRoomFromBottom()">
-          <option value="">-- Choose a Room --</option>
-        </select>
-      </div>
     `;
     if (data["__NOTES__"]) {
       document.getElementById("inspectionNotes").value = data["__NOTES__"].notes || "";
     }
-    fillRoomSelects(selected);
     return;
   }
 
@@ -451,15 +452,7 @@ function showRoomTable() {
       </div>
     `;
   });
-  html += `
-    <div class="card" style="margin:8px 0 0;padding:12px;">
-      <h2>Select Next Room</h2>
-      <p class="hint">Save this room, then pick the next one.</p>
-      <select id="roomSelectBottom" onchange="showRoomFromBottom()"></select>
-    </div>
-  `;
   container.innerHTML = html;
-  fillRoomSelects(selected);
 }
 
 function escapeHtml(value) {
@@ -488,10 +481,58 @@ function saveNotes() {
   data["__NOTES__"] = { notes };
 }
 
+function hideRoomFollowup() {
+  const report = document.getElementById("roomReport");
+  const next = document.getElementById("nextRoomCard");
+  if (report) {
+    report.style.display = "none";
+    report.textContent = "";
+  }
+  if (next) next.style.display = "none";
+}
+
+function formatOneRoom(room) {
+  if (room === "Inspection Notes") {
+    const notes = (data["__NOTES__"] && data["__NOTES__"].notes) || "";
+    return notes ? ("INSPECTION NOTES:\n" + notes.split("\n").map(l => l ? "  " + l : "").join("\n")) : "INSPECTION NOTES:\n  (empty)";
+  }
+  const baseType = room.startsWith("KITCHEN") ? "KITCHEN" :
+                   room.startsWith("BATHROOM") ? "BATHROOM" :
+                   room.startsWith("CORRIDOR") ? "CORRIDOR" :
+                   room.startsWith("BEDROOM") || room === "MASTER BEDROOM" ? "BEDROOM" : room;
+  const items = roomItems[baseType] || [];
+  let text = room.toUpperCase() + "\n";
+  let hasContent = false;
+  items.forEach(item => {
+    const entry = data[`${room}||${item}`];
+    if (entry && (entry.desc || entry.code || entry.cost)) {
+      hasContent = true;
+      text += `  → ${item}\n`;
+      text += `    Code: ${entry.code || "—"}\n`;
+      text += `    Description:\n${entry.desc ? entry.desc.split("\n").map(l => "      " + l).join("\n") : "      —"}\n`;
+      if (entry.cost) text += `    Est. Cost: $${entry.cost}\n`;
+      text += "\n";
+    }
+  });
+  if (!hasContent) text += "  (no items saved)\n";
+  return text;
+}
+
 function saveRoom() {
   flushVisibleInputs();
   saveData(true);
-  alert("Room saved.");
+  const room = activeRoom;
+  const report = document.getElementById("roomReport");
+  const next = document.getElementById("nextRoomCard");
+  if (report) {
+    report.style.display = "block";
+    report.textContent = formatOneRoom(room);
+    report.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  if (next) {
+    next.style.display = "block";
+    fillRoomSelects(room);
+  }
 }
 
 function backToUnit() {
