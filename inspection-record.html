@@ -183,6 +183,18 @@
     margin-top: 2px;
     flex: 0 0 22px;
   }
+  .qty-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 8px 0;
+  }
+  .qty-row span { flex: 1; font-weight: 400; }
+  .qty-row input[type="number"] {
+    width: 90px;
+    min-height: 42px;
+    flex: 0 0 90px;
+  }
   .hint { color: var(--muted); font-size: 0.9rem; margin: 0 0 10px; }
   #output {
     white-space: pre-wrap;
@@ -366,6 +378,58 @@ function savedFinishIds(saved) {
   return FINISH_CHOICES.filter(c => desc.includes(c.label)).map(c => c.id);
 }
 
+const ELEC_CHOICES = [
+  { id: "gfci", label: "GFCI", cost: 35 },
+  { id: "receptacle", label: "Receptacle", cost: 20 },
+  { id: "switch", label: "Switch", cost: 20 },
+  { id: "tv", label: "TV", cost: 20 },
+  { id: "communication", label: "communication", cost: 20 },
+  { id: "thermostats", label: "thermostats", cost: 40 },
+  { id: "ceiling", label: "ceiling lighting", cost: 150 },
+  { id: "sconce", label: "scone lighting", cost: 150 },
+  { id: "baseboard", label: "baseboard heating", cost: 350 }
+];
+
+function isElecItem(item) {
+  return item === "Electrical / Lighting" || item === "Electrical Fixtures";
+}
+
+function elecQty(index, id) {
+  const el = document.getElementById("elec-" + index + "-" + id);
+  const n = parseInt(el && el.value, 10);
+  return isNaN(n) || n < 0 ? 0 : n;
+}
+
+function syncElecCost(index) {
+  let total = 0;
+  const parts = [];
+  const qty = {};
+  ELEC_CHOICES.forEach(c => {
+    const n = elecQty(index, c.id);
+    qty[c.id] = n;
+    if (n) {
+      total += n * c.cost;
+      parts.push(c.label + " x" + n);
+    }
+  });
+  const costEl = document.getElementById("cost-" + index);
+  const descEl = document.getElementById("desc-" + index);
+  if (costEl) costEl.value = total ? String(total) : "";
+  if (descEl) descEl.value = parts.join("; ");
+  return { total, parts, qty };
+}
+
+function savedElecQty(saved) {
+  if (saved && saved.qty && typeof saved.qty === "object") return saved.qty;
+  const qty = {};
+  const desc = (saved && saved.desc) || "";
+  ELEC_CHOICES.forEach(c => {
+    const m = desc.match(new RegExp(c.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*x\\s*(\\d+)", "i"));
+    qty[c.id] = m ? parseInt(m[1], 10) : 0;
+  });
+  return qty;
+}
+
 let data = {};
 let roomList = [];
 let activeRoom = "";
@@ -429,14 +493,20 @@ function flushVisibleInputs() {
     let desc = descEl ? descEl.value.trim() : "";
     let cost = costEl.value.trim();
     let choices = [];
+    let qty = {};
     if (isFinishItem(item)) {
       const picked = selectedFinish(index);
       choices = picked.map(c => c.id);
       desc = picked.map(c => c.label).join("; ");
       cost = picked.length ? String(picked.reduce((s, c) => s + c.cost, 0)) : "";
+    } else if (isElecItem(item)) {
+      const calc = syncElecCost(index);
+      desc = calc.parts.join("; ");
+      cost = calc.total ? String(calc.total) : "";
+      qty = calc.qty;
     }
     const key = `${selected}||${item}`;
-    if (code || desc || cost) data[key] = { code, desc, cost, choices };
+    if (code || desc || cost) data[key] = { code, desc, cost, choices, qty };
     else delete data[key];
   });
 }
@@ -510,6 +580,16 @@ function showRoomTable() {
       const costVal = saved.cost || (picked.length ? String(FINISH_CHOICES.filter(c => picked.includes(c.id)).reduce((s, c) => s + c.cost, 0)) : "");
       html += `<label style="margin-top:10px;">Est. Cost ($)</label>
         <input type="number" id="cost-${index}" step="10" min="0" value="${escapeHtml(costVal)}" readonly>`;
+    } else if (isElecItem(item)) {
+      const qty = savedElecQty(saved);
+      html += `<label style="margin-top:10px;">Devices / Lighting</label>
+        <input type="hidden" id="desc-${index}" value="${escapeHtml(saved.desc || "")}">`;
+      ELEC_CHOICES.forEach(c => {
+        const val = qty[c.id] ? String(qty[c.id]) : "";
+        html += `<div class="qty-row"><span>${c.label}</span><input type="number" id="elec-${index}-${c.id}" min="0" step="1" inputmode="numeric" value="${escapeHtml(val)}" oninput="syncElecCost(${index})"></div>`;
+      });
+      html += `<label style="margin-top:10px;">Est. Cost ($)</label>
+        <input type="number" id="cost-${index}" step="1" min="0" value="${escapeHtml(saved.cost || "")}" readonly>`;
     } else {
       html += `
         <label style="margin-top:10px;">Condition / Description</label>
