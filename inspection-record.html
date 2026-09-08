@@ -478,20 +478,69 @@ const PRESET_ITEMS = {
     { id: "clean", label: "cleaning", type: "qty", cost: 20 },
     { id: "repaint", label: "repainting", type: "qty", cost: 50 },
     { id: "repair", label: "repair", type: "qty", cost: 20 }
+  ],
+  bathsink: [
+    { id: "clean", label: "clean / recaulk", type: "check", cost: 50 },
+    { id: "vanity", label: "vanity replace", type: "check", cost: 400 },
+    { id: "tap", label: "tap replace", type: "check", cost: 100 }
+  ],
+  medicine: [
+    { id: "clean", label: "clean", type: "check", cost: 20 },
+    { id: "replace", label: "replace", type: "check", cost: 100 }
+  ],
+  bathtub: [
+    { id: "tub", label: "tub replace", type: "check", cost: 1500 },
+    { id: "surround", label: "surrounding replace", type: "check", cost: 1800 }
+  ],
+  toilet: [
+    { id: "clean", label: "clean", type: "check", cost: 20 },
+    { id: "seat", label: "seat replace", type: "check", cost: 20 },
+    { id: "flush", label: "flush replace", type: "check", cost: 30 },
+    { id: "replace", label: "replace", type: "check", cost: 200 }
+  ],
+  exhaust: [
+    { id: "clean", label: "clean", type: "check", cost: 20 },
+    { id: "replace", label: "replace", type: "check", cost: 350 }
+  ],
+  bathhardware: [
+    { id: "clean", label: "clean", type: "check", cost: 20 },
+    { id: "paper", label: "paper holder", type: "check", cost: 20 },
+    { id: "towel", label: "towel holder", type: "check", cost: 20 }
+  ],
+  laundrysink: [
+    { id: "clean", label: "clean", type: "check", cost: 20 },
+    { id: "replace", label: "laundry sink replace", type: "check", cost: 175 }
+  ],
+  guardrails: [
+    { id: "repaint", label: "repaint", type: "check", cost: 50 }
+  ],
+  stairs: [
+    { id: "repaint", label: "repaint", type: "check", cost: 200 }
   ]
 };
 
 function presetKey(item) {
   const s = (item || "").toLowerCase();
+  const r = (activeRoom || "").toUpperCase();
   if (s.indexOf("windows and door") === 0) return "windows";
   if (s === "flooring") return "flooring";
   if (s.indexOf("stove") === 0) return "stove";
   if (s.indexOf("rangehood") === 0) return "rangehood";
   if (s.indexOf("refrigerator") === 0) return "refrigerator";
+  if (s.indexOf("sink / cabinet") === 0) {
+    return r.indexOf("LAUNDRY") >= 0 ? "laundrysink" : "bathsink";
+  }
   if (s.indexOf("sink") === 0) return "sink";
   if (s.indexOf("cupboard") === 0) return "cupboards";
   if (s.indexOf("counter") === 0) return "counter";
   if (s === "closets") return "closets";
+  if (s.indexOf("medicine") === 0) return "medicine";
+  if (s.indexOf("bathtub") === 0) return "bathtub";
+  if (s === "toilet") return "toilet";
+  if (s.indexOf("exhaust") === 0) return "exhaust";
+  if (s.indexOf("bathroom hardware") === 0) return "bathhardware";
+  if (s.indexOf("guardrail") === 0) return "guardrails";
+  if (s.indexOf("stairs") === 0) return "stairs";
   return "";
 }
 
