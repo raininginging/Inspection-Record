@@ -170,6 +170,19 @@
     font-size: 1rem;
     margin: 0 0 10px;
   }
+  .choice-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 8px 0;
+    font-weight: 400;
+  }
+  .choice-row input[type="checkbox"] {
+    width: 22px;
+    min-height: 22px;
+    margin-top: 2px;
+    flex: 0 0 22px;
+  }
   .hint { color: var(--muted); font-size: 0.9rem; margin: 0 0 10px; }
   #output {
     white-space: pre-wrap;
@@ -296,6 +309,9 @@
   <div id="nextRoomCard" class="card" style="display:none;">
     <h2>Select Next Room</h2>
     <select id="roomSelectBottom" onchange="showRoomFromBottom()"></select>
+    <div class="btn-row" style="margin-top:12px;">
+      <button type="button" class="secondary" onclick="backToUnit()">Return</button>
+    </div>
   </div>
 </div>
 
@@ -318,6 +334,37 @@ const roomItems = {
 };
 
 const codes = ["", "A", "Re", "Rp", "ReCB", "RpCB", "HI", "Ni"];
+
+const FINISH_CHOICES = [
+  { id: "wash", label: "wash", cost: 200 },
+  { id: "drywall", label: "drywall repair", cost: 200 },
+  { id: "repaint", label: "repaint", cost: 300 }
+];
+
+function isFinishItem(item) {
+  return item === "Walls / Trims" || item === "Ceiling";
+}
+
+function selectedFinish(index) {
+  return FINISH_CHOICES.filter(c => {
+    const el = document.getElementById("fin-" + index + "-" + c.id);
+    return el && el.checked;
+  });
+}
+
+function syncFinishCost(index) {
+  const picked = selectedFinish(index);
+  const costEl = document.getElementById("cost-" + index);
+  const descEl = document.getElementById("desc-" + index);
+  if (costEl) costEl.value = picked.length ? String(picked.reduce((s, c) => s + c.cost, 0)) : "";
+  if (descEl) descEl.value = picked.map(c => c.label).join("; ");
+}
+
+function savedFinishIds(saved) {
+  if (saved && Array.isArray(saved.choices) && saved.choices.length) return saved.choices;
+  const desc = ((saved && saved.desc) || "").toLowerCase();
+  return FINISH_CHOICES.filter(c => desc.includes(c.label)).map(c => c.id);
+}
 
 let data = {};
 let roomList = [];
@@ -377,12 +424,19 @@ function flushVisibleInputs() {
     const codeEl = document.getElementById(`code-${index}`);
     const descEl = document.getElementById(`desc-${index}`);
     const costEl = document.getElementById(`cost-${index}`);
-    if (!codeEl || !descEl || !costEl) return;
+    if (!codeEl || !costEl) return;
     const code = codeEl.value.trim();
-    const desc = descEl.value.trim();
-    const cost = costEl.value.trim();
+    let desc = descEl ? descEl.value.trim() : "";
+    let cost = costEl.value.trim();
+    let choices = [];
+    if (isFinishItem(item)) {
+      const picked = selectedFinish(index);
+      choices = picked.map(c => c.id);
+      desc = picked.map(c => c.label).join("; ");
+      cost = picked.length ? String(picked.reduce((s, c) => s + c.cost, 0)) : "";
+    }
     const key = `${selected}||${item}`;
-    if (code || desc || cost) data[key] = { code, desc, cost };
+    if (code || desc || cost) data[key] = { code, desc, cost, choices };
     else delete data[key];
   });
 }
@@ -444,13 +498,26 @@ function showRoomTable() {
       <div class="item-card">
         <h3>${item}</h3>
         <label>Code</label>
-        <select id="code-${index}">${codes.map(c => `<option value="${c}" ${saved.code === c ? "selected" : ""}>${c || "—"}</option>`).join("")}</select>
+        <select id="code-${index}">${codes.map(c => `<option value="${c}" ${saved.code === c ? "selected" : ""}>${c || "—"}</option>`).join("")}</select>`;
+    if (isFinishItem(item)) {
+      const picked = savedFinishIds(saved);
+      html += `<label style="margin-top:10px;">Condition / Description</label>
+        <input type="hidden" id="desc-${index}" value="${escapeHtml(saved.desc || "")}">`;
+      FINISH_CHOICES.forEach(c => {
+        const on = picked.includes(c.id) ? "checked" : "";
+        html += `<label class="choice-row"><input type="checkbox" id="fin-${index}-${c.id}" ${on} onchange="syncFinishCost(${index})">${c.label} ($${c.cost})</label>`;
+      });
+      const costVal = saved.cost || (picked.length ? String(FINISH_CHOICES.filter(c => picked.includes(c.id)).reduce((s, c) => s + c.cost, 0)) : "");
+      html += `<label style="margin-top:10px;">Est. Cost ($)</label>
+        <input type="number" id="cost-${index}" step="10" min="0" value="${escapeHtml(costVal)}" readonly>`;
+    } else {
+      html += `
         <label style="margin-top:10px;">Condition / Description</label>
         <textarea id="desc-${index}" placeholder="Multiple lines OK">${escapeHtml(saved.desc || "")}</textarea>
         <label style="margin-top:10px;">Est. Cost ($)</label>
-        <input type="number" id="cost-${index}" step="10" min="0" value="${escapeHtml(saved.cost || "")}">
-      </div>
-    `;
+        <input type="number" id="cost-${index}" step="10" min="0" value="${escapeHtml(saved.cost || "")}">`;
+    }
+    html += `</div>`;
   });
   container.innerHTML = html;
 }
