@@ -430,6 +430,97 @@ function savedElecQty(saved) {
   return qty;
 }
 
+const PRESET_ITEMS = {
+  windows: [
+    { id: "insect", label: "window insect screen", type: "qty", cost: 2 },
+    { id: "wrepair", label: "window repair", type: "check", cost: 50 },
+    { id: "wtrim", label: "window trim/sill repair", type: "check", cost: 50 },
+    { id: "wreplace", label: "window replace", type: "qty", cost: 1000 },
+    { id: "drepair", label: "door repair", type: "check", cost: 50 },
+    { id: "dtrim", label: "door trim repaint", type: "qty", cost: 20 },
+    { id: "drepaint", label: "door repaint", type: "qty", cost: 50 },
+    { id: "dreplace", label: "door replace", type: "qty", cost: 500 },
+    { id: "remove", label: "remove attachment", type: "check", cost: 20 }
+  ],
+  flooring: [
+    { id: "clean", label: "cleaning", type: "check", cost: 50 },
+    { id: "replace", label: "replace", type: "check", cost: 1200 }
+  ],
+  stove: [
+    { id: "clean", label: "cleaning", type: "check", cost: 50 },
+    { id: "replace", label: "replace", type: "check", cost: 50 }
+  ],
+  rangehood: [
+    { id: "clean", label: "cleaning", type: "check", cost: 40 },
+    { id: "filter", label: "replace filter", type: "check", cost: 40 },
+    { id: "light", label: "replace lighting", type: "check", cost: 10 },
+    { id: "replace", label: "replace", type: "check", cost: 350 }
+  ],
+  refrigerator: [
+    { id: "clean", label: "cleaning", type: "check", cost: 50 },
+    { id: "replace", label: "replace", type: "check", cost: 50 }
+  ],
+  sink: [
+    { id: "clean", label: "cleaning", type: "check", cost: 20 },
+    { id: "replace", label: "replace", type: "check", cost: 600 }
+  ],
+  cupboards: [
+    { id: "repair", label: "repair", type: "check", cost: 150 },
+    { id: "clean", label: "cleaning", type: "check", cost: 50 },
+    { id: "repaint", label: "repainting", type: "check", cost: 300 },
+    { id: "replace", label: "replace", type: "check", cost: 600 }
+  ],
+  counter: [
+    { id: "clean", label: "cleaning", type: "check", cost: 20 },
+    { id: "replace", label: "replace", type: "check", cost: 1000 }
+  ]
+};
+
+function presetKey(item) {
+  const s = (item || "").toLowerCase();
+  if (s.indexOf("windows and door") === 0) return "windows";
+  if (s === "flooring") return "flooring";
+  if (s.indexOf("stove") === 0) return "stove";
+  if (s.indexOf("rangehood") === 0) return "rangehood";
+  if (s.indexOf("refrigerator") === 0) return "refrigerator";
+  if (s.indexOf("sink") === 0) return "sink";
+  if (s.indexOf("cupboard") === 0) return "cupboards";
+  if (s.indexOf("counter") === 0) return "counter";
+  return "";
+}
+
+function syncPreset(index, key) {
+  const opts = PRESET_ITEMS[key] || [];
+  let total = 0;
+  const parts = [];
+  const choices = [];
+  const qty = {};
+  opts.forEach(c => {
+    if (c.type === "qty") {
+      const el = document.getElementById("pre-" + index + "-" + c.id);
+      const n = parseInt(el && el.value, 10);
+      const count = isNaN(n) || n < 0 ? 0 : n;
+      qty[c.id] = count;
+      if (count) {
+        total += count * c.cost;
+        parts.push(c.label + " x" + count);
+      }
+    } else {
+      const el = document.getElementById("pre-" + index + "-" + c.id);
+      if (el && el.checked) {
+        choices.push(c.id);
+        total += c.cost;
+        parts.push(c.label);
+      }
+    }
+  });
+  const costEl = document.getElementById("cost-" + index);
+  const descEl = document.getElementById("desc-" + index);
+  if (costEl) costEl.value = total ? String(total) : "";
+  if (descEl) descEl.value = parts.join("; ");
+  return { total, parts, choices, qty };
+}
+
 let data = {};
 let roomList = [];
 let activeRoom = "";
@@ -503,6 +594,12 @@ function flushVisibleInputs() {
       const calc = syncElecCost(index);
       desc = calc.parts.join("; ");
       cost = calc.total ? String(calc.total) : "";
+      qty = calc.qty;
+    } else if (presetKey(item)) {
+      const calc = syncPreset(index, presetKey(item));
+      desc = calc.parts.join("; ");
+      cost = calc.total ? String(calc.total) : "";
+      choices = calc.choices;
       qty = calc.qty;
     }
     const key = `${selected}||${item}`;
@@ -587,6 +684,24 @@ function showRoomTable() {
       ELEC_CHOICES.forEach(c => {
         const val = qty[c.id] ? String(qty[c.id]) : "";
         html += `<div class="qty-row"><span>${c.label}</span><input type="number" id="elec-${index}-${c.id}" min="0" step="1" inputmode="numeric" value="${escapeHtml(val)}" oninput="syncElecCost(${index})"></div>`;
+      });
+      html += `<label style="margin-top:10px;">Est. Cost ($)</label>
+        <input type="number" id="cost-${index}" step="1" min="0" value="${escapeHtml(saved.cost || "")}" readonly>`;
+    } else if (presetKey(item)) {
+      const key = presetKey(item);
+      const opts = PRESET_ITEMS[key];
+      const picked = Array.isArray(saved.choices) ? saved.choices : [];
+      const qty = saved.qty && typeof saved.qty === "object" ? saved.qty : {};
+      html += `<label style="margin-top:10px;">Condition / Description</label>
+        <input type="hidden" id="desc-${index}" value="${escapeHtml(saved.desc || "")}">`;
+      opts.forEach(c => {
+        if (c.type === "qty") {
+          const val = qty[c.id] ? String(qty[c.id]) : "";
+          html += `<div class="qty-row"><span>${c.label}</span><input type="number" id="pre-${index}-${c.id}" min="0" step="1" inputmode="numeric" value="${escapeHtml(val)}" oninput="syncPreset(${index}, '${key}')"></div>`;
+        } else {
+          const on = picked.includes(c.id) ? "checked" : "";
+          html += `<label class="choice-row"><input type="checkbox" id="pre-${index}-${c.id}" ${on} onchange="syncPreset(${index}, '${key}')">${c.label}</label>`;
+        }
       });
       html += `<label style="margin-top:10px;">Est. Cost ($)</label>
         <input type="number" id="cost-${index}" step="1" min="0" value="${escapeHtml(saved.cost || "")}" readonly>`;
