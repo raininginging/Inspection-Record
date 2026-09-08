@@ -434,7 +434,7 @@ const PRESET_ITEMS = {
   windows: [
     { id: "insect", label: "window insect screen", type: "qty", cost: 20 },
     { id: "wrepair", label: "window repair", type: "check", cost: 50 },
-    { id: "wtrim", label: "window trim/sill repair", type: "check", cost: 50 },
+    { id: "wtrim", label: "window trim/sill repaint", type: "check", cost: 50 },
     { id: "wreplace", label: "window replace", type: "qty", cost: 1000 },
     { id: "drepair", label: "door repair", type: "check", cost: 50 },
     { id: "dtrim", label: "door trim repaint", type: "qty", cost: 20 },
@@ -473,6 +473,11 @@ const PRESET_ITEMS = {
   counter: [
     { id: "clean", label: "cleaning", type: "check", cost: 20 },
     { id: "replace", label: "replace", type: "check", cost: 1000 }
+  ],
+  closets: [
+    { id: "clean", label: "cleaning", type: "qty", cost: 20 },
+    { id: "repaint", label: "repainting", type: "qty", cost: 50 },
+    { id: "repair", label: "repair", type: "qty", cost: 20 }
   ]
 };
 
@@ -486,6 +491,7 @@ function presetKey(item) {
   if (s.indexOf("sink") === 0) return "sink";
   if (s.indexOf("cupboard") === 0) return "cupboards";
   if (s.indexOf("counter") === 0) return "counter";
+  if (s === "closets") return "closets";
   return "";
 }
 
