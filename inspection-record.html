@@ -432,7 +432,7 @@ function savedElecQty(saved) {
 
 const PRESET_ITEMS = {
   windows: [
-    { id: "insect", label: "window insect screen", type: "qty", cost: 2 },
+    { id: "insect", label: "window insect screen", type: "qty", cost: 20 },
     { id: "wrepair", label: "window repair", type: "check", cost: 50 },
     { id: "wtrim", label: "window trim/sill repair", type: "check", cost: 50 },
     { id: "wreplace", label: "window replace", type: "qty", cost: 1000 },
@@ -497,11 +497,13 @@ function syncPreset(index, key) {
   const qty = {};
   opts.forEach(c => {
     if (c.type === "qty") {
+      const chk = document.getElementById("pre-chk-" + index + "-" + c.id);
       const el = document.getElementById("pre-" + index + "-" + c.id);
       const n = parseInt(el && el.value, 10);
       const count = isNaN(n) || n < 0 ? 0 : n;
       qty[c.id] = count;
-      if (count) {
+      if (chk && chk.checked && count) {
+        choices.push(c.id);
         total += count * c.cost;
         parts.push(c.label + " x" + count);
       }
@@ -519,6 +521,22 @@ function syncPreset(index, key) {
   if (costEl) costEl.value = total ? String(total) : "";
   if (descEl) descEl.value = parts.join("; ");
   return { total, parts, choices, qty };
+}
+
+function togglePresetQty(index, key, id) {
+  const chk = document.getElementById("pre-chk-" + index + "-" + id);
+  const el = document.getElementById("pre-" + index + "-" + id);
+  if (chk && chk.checked && el && !el.value) el.value = "1";
+  if (chk && !chk.checked && el) el.value = "";
+  syncPreset(index, key);
+}
+
+function onPresetQtyInput(index, key, id) {
+  const chk = document.getElementById("pre-chk-" + index + "-" + id);
+  const el = document.getElementById("pre-" + index + "-" + id);
+  const n = parseInt(el && el.value, 10);
+  if (chk) chk.checked = !!(n > 0);
+  syncPreset(index, key);
 }
 
 let data = {};
@@ -697,10 +715,11 @@ function showRoomTable() {
       opts.forEach(c => {
         if (c.type === "qty") {
           const val = qty[c.id] ? String(qty[c.id]) : "";
-          html += `<div class="qty-row"><span>${c.label}</span><input type="number" id="pre-${index}-${c.id}" min="0" step="1" inputmode="numeric" value="${escapeHtml(val)}" oninput="syncPreset(${index}, '${key}')"></div>`;
+          const on = picked.includes(c.id) || qty[c.id] ? "checked" : "";
+          html += `<div class="qty-row"><label class="choice-row" style="margin:0;flex:1;"><input type="checkbox" id="pre-chk-${index}-${c.id}" ${on} onchange="togglePresetQty(${index}, '${key}', '${c.id}')">${c.label}</label><input type="number" id="pre-${index}-${c.id}" min="0" step="1" inputmode="numeric" value="${escapeHtml(val)}" oninput="onPresetQtyInput(${index}, '${key}', '${c.id}')"></div>`;
         } else {
           const on = picked.includes(c.id) ? "checked" : "";
-          html += `<label class="choice-row"><input type="checkbox" id="pre-${index}-${c.id}" ${on} onchange="syncPreset(${index}, '${key}')">${c.label}</label>`;
+          html += `<label class="choice-row"><input type="checkbox" id="pre-${index}-${c.id}" ${on} onchange="syncPreset(${index}, '${key}')">${c.label} ($${c.cost})</label>`;
         }
       });
       html += `<label style="margin-top:10px;">Est. Cost ($)</label>
